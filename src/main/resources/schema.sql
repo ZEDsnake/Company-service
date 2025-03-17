@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS companies (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    budget NUMERIC(19, 2) NOT NULL
+);
