@@ -1,10 +1,11 @@
 package com.zed.company_service.service;
 
-import com.zed.company_service.entity.CompanyEntity;
+import com.zed.company_service.dto.CompanyDTO;
+import org.mapstruct.Mapper;
 
-import java.util.Optional;
-
+@Mapper
 public interface CompanyService {
-    CompanyEntity createCompany(CompanyEntity company);
-    Optional<CompanyEntity> getCompanyById(Long id);
+    CompanyDTO addCompany(CompanyDTO companyDTO);
+    CompanyDTO getCompanyById(Long id);
 }
+

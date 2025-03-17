@@ -5,7 +5,7 @@ import com.zed.company_service.entity.CompanyEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface CompanyMapper {
     CompanyMapper INSTANCE = Mappers.getMapper(CompanyMapper.class);
 
