@@ -4,13 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @AllArgsConstructor
-@Getter
 @Setter
-public class CompanyDTO {
-    private Long id;
-    private String name;
-    private BigDecimal budget;
+@Getter
+public class ErrorDTO {
+    private String message;
+    private LocalDateTime timestamp;
 }

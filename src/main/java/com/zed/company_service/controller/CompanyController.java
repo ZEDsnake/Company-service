@@ -3,6 +3,7 @@ package com.zed.company_service.controller;
 import com.zed.company_service.dto.CompanyDTO;
 import com.zed.company_service.service.CompanyService;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,8 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@AllArgsConstructor
 @RestController
+@Slf4j
+@AllArgsConstructor
 @RequestMapping("/companies")
 public class CompanyController {
 
@@ -22,12 +24,14 @@ public class CompanyController {
 
     @PostMapping
     public ResponseEntity<CompanyDTO> addCompany(@RequestBody CompanyDTO companyDTO) {
+        log.info("POST request received: \"/companies\" with body: {}", companyDTO);
         CompanyDTO savedCompanyDTO = companyService.addCompany(companyDTO);
         return new ResponseEntity<>(savedCompanyDTO, HttpStatus.CREATED);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<CompanyDTO> getCompanyById(@PathVariable Long id) {
+        log.info("GET request received: \"/companies/{}\"", id);
         CompanyDTO companyDTO = companyService.getCompanyById(id);
         return ResponseEntity.ok(companyDTO);
     }
