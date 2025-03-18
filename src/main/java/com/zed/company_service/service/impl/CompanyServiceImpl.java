@@ -6,12 +6,12 @@ import com.zed.company_service.exception.CompanyNotFoundException;
 import com.zed.company_service.mapper.CompanyMapper;
 import com.zed.company_service.repository.CompanyRepository;
 import com.zed.company_service.service.CompanyService;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Service
 public class CompanyServiceImpl implements CompanyService {
     private final CompanyRepository companyRepository;

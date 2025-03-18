@@ -1,14 +1,10 @@
 package com.zed.company_service.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.math.BigDecimal;
 
-@AllArgsConstructor
-@Getter
-@Setter
+@Data
 public class CompanyDTO {
     private Long id;
     private String name;

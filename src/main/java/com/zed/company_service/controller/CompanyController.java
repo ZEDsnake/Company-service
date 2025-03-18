@@ -2,7 +2,7 @@ package com.zed.company_service.controller;
 
 import com.zed.company_service.dto.CompanyDTO;
 import com.zed.company_service.service.CompanyService;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RequestMapping("/companies")
 public class CompanyController {
 
