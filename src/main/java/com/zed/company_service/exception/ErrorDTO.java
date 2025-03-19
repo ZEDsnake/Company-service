@@ -1,4 +1,4 @@
-package com.zed.company_service.dto;
+package com.zed.company_service.exception;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
