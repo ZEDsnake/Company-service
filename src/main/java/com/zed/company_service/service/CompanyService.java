@@ -3,7 +3,8 @@ package com.zed.company_service.service;
 import com.zed.company_service.dto.CompanyDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
-import org.springframework.data.domain.Page;
+
+import java.util.List;
 
 public interface CompanyService {
     CompanyDTO addCompany(CreateCompanyDTO companyDTO);
@@ -14,6 +15,6 @@ public interface CompanyService {
 
     void deleteCompany(Long id);
 
-    Page<CompanyDTO> getCompanies(int page, int size);
+    List<CompanyDTO> getCompanies(int page, int size);
 }
 

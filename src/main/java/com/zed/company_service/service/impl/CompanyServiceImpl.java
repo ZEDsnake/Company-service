@@ -16,6 +16,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -55,22 +57,19 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     @Transactional
     public void deleteCompany(Long id) {
-        log.info("CompanyService: deleteCompany method called with id: {}", id);//логгирование  начало удаления
         CompanyEntity companyEntity = findCompanyById(id); // Находим компанию по ID
-        log.info("CompanyService: Deleting company with id={}, name={}", id, companyEntity.getName()); // Логируем детали удаления??
         companyRepository.delete(companyEntity);// Удаляем компанию
         log.info("CompanyService: Company with id={} deleted successfully", id);//логгируем успешное удаление
     }
 
     @Override
     @Transactional
-    public Page<CompanyDTO> getCompanies(int page, int size) {
-        log.info("CompanyService: getCompanies method called with page={}, size={}", page, size); // Логируем параметры
+    public List<CompanyDTO> getCompanies(int page, int size) {
         Pageable pageable = PageRequest.of(page, size); // Создаём объект пагинации
         Page<CompanyEntity> companyPage = companyRepository.findAll(pageable); // Получаем страницу компаний
-        Page<CompanyDTO> result = companyPage.map(companyMapper::toCompanyDTO); // Преобразуем страницу Entity в страницу DTO
-        log.info("CompanyService: getCompanies method result: {}", result.getContent()); // Логируем результат метода
-        return result; // Возвращаем страницу DTO
+        List<CompanyDTO> companyDTOList = companyMapper.toCompanyDTOList(companyPage.getContent());
+        log.info("Retrieved {} companies for page {} with size {}", companyDTOList.size(), page, size);
+        return  companyDTOList;
     }
 
     private CompanyEntity findCompanyById(Long id) {

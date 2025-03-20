@@ -8,10 +8,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.web.PagedResourcesAssembler;
-import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 
 @RestController
 @Validated
@@ -34,7 +32,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class CompanyController {
 
     private final CompanyService companyService;
-    private final PagedResourcesAssembler<CompanyDTO> pagedResourcesAssembler;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -65,14 +62,14 @@ public class CompanyController {
         companyService.deleteCompany(id);
     }
 
+
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public PagedModel<EntityModel<CompanyDTO>> getCompanies(
+    public List<CompanyDTO> getCompanies(
             @RequestParam(defaultValue = "0") @Min(value = 0, message = "Page must be greater than or equal to 0") int page,
             @RequestParam(defaultValue = "10") @Min(value = 1, message = "Size must be greater than or equal to 1") int size) {
         log.info("GET request received: \"/companies\" with pagination: page={}, size={}", page, size);
-        Page<CompanyDTO> companyPage = companyService.getCompanies(page, size);
-        return pagedResourcesAssembler.toModel(companyPage);
+        return companyService.getCompanies(page, size);
     }
 }
 
