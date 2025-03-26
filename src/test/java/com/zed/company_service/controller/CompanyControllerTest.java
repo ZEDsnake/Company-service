@@ -21,6 +21,7 @@ import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -259,8 +260,12 @@ class CompanyControllerTest {
 
     @Test
     void deleteCompany_ValidId_ReturnsNoContent() throws Exception {
+        // 1. Выполняем запрос
         mockMvc.perform(delete("/companies/{id}", 1L))
                 .andExpect(status().isNoContent());
+
+        // 2. Проверяем, что сервис был вызван с правильным ID
+        verify(companyService).deleteCompany(1L);
     }
 
     @Test
@@ -283,35 +288,39 @@ class CompanyControllerTest {
 
     @Test
     void getCompanies_ValidPagination_ReturnsOk() throws Exception {
+        // 1. Подготовка данных
         int page = 0;
         int size = 10;
 
-        List<CompanyDTO> companies = List.of(
-                new CompanyDTO() {{
-                    setId(1L);
-                    setName("Company A");
-                    setBudget(BigDecimal.valueOf(1000));
-                }},
-                new CompanyDTO() {{
-                    setId(2L);
-                    setName("Company B");
-                    setBudget(BigDecimal.valueOf(2000));
-                }}
-        );
+        CompanyDTO companyA = new CompanyDTO();
+        companyA.setId(1L);
+        companyA.setName("Company A");
+        companyA.setBudget(BigDecimal.valueOf(1000));
 
+        CompanyDTO companyB = new CompanyDTO();
+        companyB.setId(2L);
+        companyB.setName("Company B");
+        companyB.setBudget(BigDecimal.valueOf(2000));
+
+        List<CompanyDTO> companies = List.of(companyA, companyB);
+
+        // 2. Мок сервиса
         when(companyService.getCompanies(page, size)).thenReturn(companies);
 
+        // 3. Отправка запроса и проверка
         mockMvc.perform(get("/companies")
                         .param("page", String.valueOf(page))
                         .param("size", String.valueOf(size)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].id").value(1L))
-                .andExpect(jsonPath("$[0].name").value("Company A"))
-                .andExpect(jsonPath("$[0].budget").value(1000.0))
-                .andExpect(jsonPath("$[1].id").value(2L))
-                .andExpect(jsonPath("$[1].name").value("Company B"))
-                .andExpect(jsonPath("$[1].budget").value(2000.0));
+                // Проверяем, что поля ответа совпадают с полями companyA
+                .andExpect(jsonPath("$[0].id").value(companyA.getId()))
+                .andExpect(jsonPath("$[0].name").value(companyA.getName()))
+                .andExpect(jsonPath("$[0].budget").value(companyA.getBudget().doubleValue()))
+                // Проверяем, что поля ответа совпадают с полями companyB
+                .andExpect(jsonPath("$[1].id").value(companyB.getId()))
+                .andExpect(jsonPath("$[1].name").value(companyB.getName()))
+                .andExpect(jsonPath("$[1].budget").value(companyB.getBudget().doubleValue()));
     }
 
     @Test

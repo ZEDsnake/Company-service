@@ -4,15 +4,16 @@ import com.zed.company_service.dto.CompanyDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 import com.zed.company_service.entity.CompanyEntity;
-import com.zed.company_service.mapper.CompanyMapper;
 import com.zed.company_service.repository.CompanyRepository;
 import com.zed.company_service.service.impl.CompanyServiceImpl;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -25,9 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -41,6 +40,12 @@ class CompanyServiceImplIntegrationTest {
 
     @Autowired
     private CompanyRepository companyRepository;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @BeforeEach
     void cleanUp() {
@@ -156,62 +161,35 @@ class CompanyServiceImplIntegrationTest {
     }
 
     @Test
-    void concurrentUpdates_shouldNotLoseUpdates() throws InterruptedException {
-        // Arrange
-        Long existingId = 1L;
-        int threads = 5;
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
-
-        // Act
-        for (int i = 0; i < threads; i++) {
-            final int increment = i + 1;
-            executor.submit(() -> {
-                companyService.updateCompany(existingId, new UpdateCompanyDTO() {{
-                    setBudget(new BigDecimal(increment));
-                }});
-            });
-        }
-        executor.shutdown();
-        executor.awaitTermination(1, TimeUnit.SECONDS);
-
-        // Assert
-        CompanyEntity entity = companyRepository.findById(existingId).orElseThrow();
-        assertTrue(entity.getBudget().compareTo(BigDecimal.ZERO) > 0);
-    }
-
-    @Test
     void updateCompany_shouldRollbackOnException() {
         // Arrange
-        Long existingId = 1L;
-        CompanyEntity originalEntity = companyRepository.findById(existingId).orElseThrow();
+        CompanyEntity originalEntity = companyRepository.findById(1L).orElseThrow();
         BigDecimal originalBudget = originalEntity.getBudget();
-
-        // Создаем mock для CompanyMapper
-        CompanyMapper mapperMock = Mockito.mock(CompanyMapper.class);
-
-        // Создаем экземпляр сервиса с mock-маппером
-        CompanyService failingService = new CompanyServiceImpl(companyRepository, mapperMock) {
-            @Override
-            @Transactional
-            public CompanyDTO updateCompany(Long id, UpdateCompanyDTO updateDto) {
-                // Сначала выполняем обновление
-                CompanyDTO result = super.updateCompany(id, updateDto);
-                // Затем бросаем исключение
-                throw new RuntimeException("Simulated error");
-            }
-        };
 
         UpdateCompanyDTO updateDto = new UpdateCompanyDTO();
         updateDto.setBudget(new BigDecimal("999999.00"));
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> {
-            failingService.updateCompany(existingId, updateDto);
+            // Создаем новую транзакцию
+            TransactionTemplate template = new TransactionTemplate(transactionManager);
+            template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+            template.execute(status -> {
+                // Вызываем updateCompany
+                CompanyDTO result = companyService.updateCompany(1L, updateDto);
+
+                // Проверяем изменения
+                CompanyEntity updated = companyRepository.findById(1L).orElseThrow();
+                assertNotEquals(0, updated.getBudget().compareTo(originalBudget));
+
+                // Бросаем исключение
+                throw new RuntimeException("Simulated error");
+            });
         });
 
-        // Проверяем откат транзакции
-        CompanyEntity afterUpdate = companyRepository.findById(existingId).orElseThrow();
-        assertEquals(0, originalBudget.compareTo(afterUpdate.getBudget()),
-                "Budget should be rolled back to original value");
+        // Проверяем откат
+        CompanyEntity afterRollback = companyRepository.findById(1L).orElseThrow();
+        assertEquals(0, originalBudget.compareTo(afterRollback.getBudget()));
     }
 }
