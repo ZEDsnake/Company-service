@@ -85,25 +85,17 @@ class CompanyServiceImplIntegrationTest {
     void getCompanyById_shouldReturnCorrectEntity() {
         // Arrange
         Long existingId = 1L;
-
-        // Получаем актуальные данные из БД для проверки
         CompanyEntity entityFromDb = companyRepository.findById(existingId).orElseThrow();
 
         // Act
         CompanyDTO result = companyService.getCompanyById(existingId);
 
         // Assert
-        assertNotNull(result);
-        assertEquals(existingId, result.getId());
-        assertEquals(entityFromDb.getName(), result.getName());
-
-        // Сравниваем с данными из БД, а не с жестко закодированным значением
+        assertNotNull(result, "Result should not be null");
+        assertEquals(existingId, result.getId(), "ID should match");
+        assertEquals(entityFromDb.getName(), result.getName(), "Name should match database value");
         assertEquals(0, entityFromDb.getBudget().compareTo(result.getBudget()),
                 "Budget should match database value");
-
-        // Дополнительная проверка (можно добавить логирование)
-        System.out.println("Expected budget: " + entityFromDb.getBudget() +
-                ", Actual budget: " + result.getBudget());
     }
 
     @Test
