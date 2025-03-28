@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 @Getter
 @Table(name = "companies")
 public class CompanyEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
