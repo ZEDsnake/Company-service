@@ -42,21 +42,15 @@ class CompanyControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private final CreateCompanyDTO createCompanyDTO = new CreateCompanyDTO();
-    private final UpdateCompanyDTO updateCompanyDTO = new UpdateCompanyDTO();
-    private final CompanyDTO companyDTO = new CompanyDTO();
+    private CreateCompanyDTO createCompanyDTO = new CreateCompanyDTO();
+    private UpdateCompanyDTO updateCompanyDTO = new UpdateCompanyDTO();
+    private CompanyDTO companyDTO = new CompanyDTO();
 
     @BeforeEach
     void setup() {
-        createCompanyDTO.setName("Test Company");
-        createCompanyDTO.setBudget(BigDecimal.valueOf(1000));
-
-        updateCompanyDTO.setName("Updated Company");
-        updateCompanyDTO.setBudget(BigDecimal.valueOf(2000));
-
-        companyDTO.setId(1L);
-        companyDTO.setName("Test Company");
-        companyDTO.setBudget(BigDecimal.valueOf(1000));
+        createCompanyDTO = new CreateCompanyDTO("Test Company", BigDecimal.valueOf(1000));
+        updateCompanyDTO = new UpdateCompanyDTO("Updated Company", BigDecimal.valueOf(2000));
+        companyDTO = new CompanyDTO(1L, "Test Company", BigDecimal.valueOf(1000));
     }
 
     @Test
@@ -74,7 +68,7 @@ class CompanyControllerTest {
 
     @Test
     void addCompany_InvalidName_ReturnsBadRequest() throws Exception {
-        createCompanyDTO.setName("A"); // Нарушение @Size(min = 3, max = 100)
+        createCompanyDTO.setName("A");
 
         mockMvc.perform(post("/companies")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -85,7 +79,7 @@ class CompanyControllerTest {
 
     @Test
     void addCompany_NameMinLength_ReturnsCreated() throws Exception {
-        createCompanyDTO.setName("abc"); // Минимальная длина (3 символа)
+        createCompanyDTO.setName("abc");
 
         companyDTO.setName("abc");
 
@@ -100,7 +94,7 @@ class CompanyControllerTest {
 
     @Test
     void addCompany_NameBelowMinLength_ReturnsBadRequest() throws Exception {
-        createCompanyDTO.setName("ab"); // Ниже минимальной длины (2 символа)
+        createCompanyDTO.setName("ab");
 
         mockMvc.perform(post("/companies")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -111,7 +105,7 @@ class CompanyControllerTest {
 
     @Test
     void addCompany_NameMidLength_ReturnsCreated() throws Exception {
-        createCompanyDTO.setName("a".repeat(50)); // Средняя длина (50 символов)
+        createCompanyDTO.setName("a".repeat(50));
 
         companyDTO.setName("a".repeat(50));
 
@@ -126,7 +120,7 @@ class CompanyControllerTest {
 
     @Test
     void addCompany_NameMaxLength_ReturnsCreated() throws Exception {
-        createCompanyDTO.setName("a".repeat(100)); // Максимальная длина (100 символов)
+        createCompanyDTO.setName("a".repeat(100));
 
         companyDTO.setName("a".repeat(100));
 
@@ -141,7 +135,7 @@ class CompanyControllerTest {
 
     @Test
     void addCompany_NameAboveMaxLength_ReturnsBadRequest() throws Exception {
-        createCompanyDTO.setName("a".repeat(101)); // Выше максимальной длины (101 символ)
+        createCompanyDTO.setName("a".repeat(101));
 
         mockMvc.perform(post("/companies")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -163,7 +157,7 @@ class CompanyControllerTest {
 
     @Test
     void addCompany_NullBudget_ReturnsBadRequest() throws Exception {
-        createCompanyDTO.setBudget(null); // Нарушение @NotNull
+        createCompanyDTO.setBudget(null);
 
         mockMvc.perform(post("/companies")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -174,7 +168,7 @@ class CompanyControllerTest {
 
     @Test
     void addCompany_NegativeBudget_ReturnsBadRequest() throws Exception {
-        createCompanyDTO.setBudget(BigDecimal.valueOf(-100)); // Нарушение @PositiveOrZero
+        createCompanyDTO.setBudget(BigDecimal.valueOf(-100));
 
         mockMvc.perform(post("/companies")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -249,7 +243,7 @@ class CompanyControllerTest {
 
     @Test
     void updateCompany_NegativeBudget_ReturnsBadRequest() throws Exception {
-        updateCompanyDTO.setBudget(BigDecimal.valueOf(-100)); // Нарушение @PositiveOrZero
+        updateCompanyDTO.setBudget(BigDecimal.valueOf(-100));
 
         mockMvc.perform(put("/companies/{id}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -260,11 +254,9 @@ class CompanyControllerTest {
 
     @Test
     void deleteCompany_ValidId_ReturnsNoContent() throws Exception {
-        // 1. Выполняем запрос
         mockMvc.perform(delete("/companies/{id}", 1L))
                 .andExpect(status().isNoContent());
 
-        // 2. Проверяем, что сервис был вызван с правильным ID
         verify(companyService).deleteCompany(1L);
     }
 
@@ -288,36 +280,26 @@ class CompanyControllerTest {
 
     @Test
     void getCompanies_ValidPagination_ReturnsOk() throws Exception {
-        // 1. Подготовка данных
         int page = 0;
         int size = 10;
 
-        CompanyDTO companyA = new CompanyDTO();
-        companyA.setId(1L);
-        companyA.setName("Company A");
-        companyA.setBudget(BigDecimal.valueOf(1000));
-
-        CompanyDTO companyB = new CompanyDTO();
-        companyB.setId(2L);
-        companyB.setName("Company B");
-        companyB.setBudget(BigDecimal.valueOf(2000));
+        CompanyDTO companyA = new CompanyDTO(1L, "Company A", BigDecimal.valueOf(1000));
+        CompanyDTO companyB = new CompanyDTO(2L, "Company B", BigDecimal.valueOf(2000));
 
         List<CompanyDTO> companies = List.of(companyA, companyB);
 
-        // 2. Мок сервиса
         when(companyService.getCompanies(page, size)).thenReturn(companies);
 
-        // 3. Отправка запроса и проверка
         mockMvc.perform(get("/companies")
                         .param("page", String.valueOf(page))
                         .param("size", String.valueOf(size)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
-                // Проверяем, что поля ответа совпадают с полями companyA
+
                 .andExpect(jsonPath("$[0].id").value(companyA.getId()))
                 .andExpect(jsonPath("$[0].name").value(companyA.getName()))
                 .andExpect(jsonPath("$[0].budget").value(companyA.getBudget().doubleValue()))
-                // Проверяем, что поля ответа совпадают с полями companyB
+
                 .andExpect(jsonPath("$[1].id").value(companyB.getId()))
                 .andExpect(jsonPath("$[1].name").value(companyB.getName()))
                 .andExpect(jsonPath("$[1].budget").value(companyB.getBudget().doubleValue()));
@@ -349,7 +331,7 @@ class CompanyControllerTest {
 
     @Test
     void getCompanies_PageMinValue_ReturnsOk() throws Exception {
-        int page = 0; // Минимальное значение
+        int page = 0;
         int size = 10;
 
         when(companyService.getCompanies(page, size)).thenReturn(List.of(companyDTO));
@@ -362,7 +344,7 @@ class CompanyControllerTest {
 
     @Test
     void getCompanies_PageBelowMinValue_ReturnsBadRequest() throws Exception {
-        int page = -1; // Ниже минимального значения
+        int page = -1;
         int size = 10;
 
         mockMvc.perform(get("/companies")
@@ -375,7 +357,7 @@ class CompanyControllerTest {
     @Test
     void getCompanies_SizeMinValue_ReturnsOk() throws Exception {
         int page = 0;
-        int size = 1; // Минимальное значение
+        int size = 1;
 
         when(companyService.getCompanies(page, size)).thenReturn(List.of(companyDTO));
 
@@ -388,8 +370,7 @@ class CompanyControllerTest {
     @Test
     void getCompanies_SizeBelowMinValue_ReturnsBadRequest() throws Exception {
         int page = 0;
-        int size = 0; // Ниже минимального значения
-
+        int size = 0;
         mockMvc.perform(get("/companies")
                         .param("page", String.valueOf(page))
                         .param("size", String.valueOf(size)))
@@ -400,7 +381,7 @@ class CompanyControllerTest {
     @Test
     void getCompanies_SizeMaxValue_ReturnsOk() throws Exception {
         int page = 0;
-        int size = 100; // Максимальное значение
+        int size = 100;
 
         when(companyService.getCompanies(page, size)).thenReturn(List.of(companyDTO));
 
@@ -409,17 +390,5 @@ class CompanyControllerTest {
                         .param("size", String.valueOf(size)))
                 .andExpect(status().isOk());
     }
-//Тест на максимальный размер страницы??? max нет в контроллере.
-//    @Test
-//    void getCompanies_SizeAboveMaxValue_ReturnsBadRequest() throws Exception {
-//        int page = 0;
-//        int size = 101; // пример. Выше максимального значения
-//
-//        mockMvc.perform(get("/companies")
-//                        .param("page", String.valueOf(page))
-//                        .param("size", String.valueOf(size)))
-//                .andExpect(status().isBadRequest())
-//                .andExpect(jsonPath("$.message").value("Size must be less than or equal to 100"));
-//    }
 }
 

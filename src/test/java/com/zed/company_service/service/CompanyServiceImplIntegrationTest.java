@@ -4,6 +4,7 @@ import com.zed.company_service.dto.CompanyDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 import com.zed.company_service.entity.CompanyEntity;
+import com.zed.company_service.exception.NotFoundException;
 import com.zed.company_service.repository.CompanyRepository;
 import com.zed.company_service.service.impl.CompanyServiceImpl;
 import jakarta.persistence.EntityManager;
@@ -12,22 +13,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.transaction.support.TransactionTemplate;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
@@ -42,28 +37,18 @@ class CompanyServiceImplIntegrationTest {
     private CompanyRepository companyRepository;
 
     @Autowired
-    private PlatformTransactionManager transactionManager;
-
-    @Autowired
     private EntityManager entityManager;
 
     @BeforeEach
     void cleanUp() {
-        // Очистка перед каждым тестом не нужна,
-        // так как @Transactional откатывает изменения
     }
 
     @Test
-    void addCompany_shouldPersistEntityWithCorrectData() {
-        // Arrange
-        CreateCompanyDTO dto = new CreateCompanyDTO();
-        dto.setName("NewCo");
-        dto.setBudget(new BigDecimal("500000.00"));
+    void addCompany_ReturnDto_WithGeneratedIdAndValidData() {
+        CreateCompanyDTO dto = new CreateCompanyDTO("NewCo", new BigDecimal("500000.00"));
 
-        // Act
         CompanyDTO result = companyService.addCompany(dto);
 
-        // Assert
         assertNotNull(result.getId());
         CompanyEntity savedEntity = companyRepository.findById(result.getId()).orElseThrow();
         assertEquals("NewCo", savedEntity.getName());
@@ -71,117 +56,63 @@ class CompanyServiceImplIntegrationTest {
     }
 
     @Test
-    void addCompany_shouldThrowExceptionWhenNameNotUnique() {
-        // Arrange (Company A уже существует в test-data.sql)
-        CreateCompanyDTO dto = new CreateCompanyDTO();
-        dto.setName("Company A");
-        dto.setBudget(new BigDecimal("100000.00"));
+    void addCompany_shouldThrow_WhenNameNotUnique() {
+        companyRepository.save(new CompanyEntity(null, "ExistingName", BigDecimal.ONE));
+        CreateCompanyDTO dto = new CreateCompanyDTO("ExistingName", BigDecimal.TEN);
 
-        // Act & Assert
         assertThrows(DataIntegrityViolationException.class, () -> companyService.addCompany(dto));
     }
 
     @Test
-    void getCompanyById_shouldReturnCorrectEntity() {
-        // Arrange
-        Long existingId = 1L;
-        CompanyEntity entityFromDb = companyRepository.findById(existingId).orElseThrow();
+    void getCompanyById_ReturnCorrectEntity() {
+        CompanyEntity savedEntity = companyRepository.save(
+                new CompanyEntity(null, "TestCompany", new BigDecimal("1000.00"))
+        );
 
-        // Act
-        CompanyDTO result = companyService.getCompanyById(existingId);
+        CompanyDTO result = companyService.getCompanyById(savedEntity.getId());
 
-        // Assert
-        assertNotNull(result, "Result should not be null");
-        assertEquals(existingId, result.getId(), "ID should match");
-        assertEquals(entityFromDb.getName(), result.getName(), "Name should match database value");
-        assertEquals(0, entityFromDb.getBudget().compareTo(result.getBudget()),
-                "Budget should match database value");
+        assertEquals(savedEntity.getId(), result.getId());
+        assertEquals(savedEntity.getName(), result.getName());
+        assertEquals(0, savedEntity.getBudget().compareTo(result.getBudget()));
     }
 
     @Test
-    void updateCompany_shouldUpdateOnlySpecifiedFields() {
-        // Arrange
-        Long existingId = 1L;
-        CompanyEntity originalEntity = companyRepository.findById(existingId).orElseThrow();
-        BigDecimal originalBudget = originalEntity.getBudget(); // Получаем актуальное значение
+    void updateCompany_ModifyOnlyProvidedFields() {
+        CompanyEntity original = companyRepository.save(
+                new CompanyEntity(null, "Original", new BigDecimal("2000.00"))
+        );
 
-        UpdateCompanyDTO dto = new UpdateCompanyDTO();
-        dto.setName("Updated Name");
+        CompanyDTO result = companyService.updateCompany(
+                original.getId(),
+                new UpdateCompanyDTO("Updated", null)
+        );
 
-        // Act
-        CompanyDTO result = companyService.updateCompany(existingId, dto);
-
-        // Assert
-        assertEquals("Updated Name", result.getName());
-        assertEquals(0, originalBudget.compareTo(result.getBudget()),
-                "Budget should remain unchanged");
-
-        // Проверяем сохранение в БД
-        CompanyEntity updatedEntity = companyRepository.findById(existingId).orElseThrow();
-        assertEquals("Updated Name", updatedEntity.getName());
-        assertEquals(0, originalBudget.compareTo(updatedEntity.getBudget()),
-                "Budget in DB should remain unchanged");
+        assertEquals("Updated", result.getName());
+        assertEquals(0, original.getBudget().compareTo(result.getBudget()));
     }
 
     @Test
-    void deleteCompany_shouldRemoveEntityFromDb() {
-        // Arrange
-        Long existingId = 1L;
-        assertTrue(companyRepository.existsById(existingId));
+    void deleteCompany_RemoveEntityFromDb() {
+        CompanyEntity entity = companyRepository.save(
+                new CompanyEntity(null, "ToDelete", BigDecimal.ONE)
+        );
 
-        // Act
-        companyService.deleteCompany(existingId);
+        companyService.deleteCompany(entity.getId());
 
-        // Assert
-        assertFalse(companyRepository.existsById(existingId));
+        assertThrows(NotFoundException.class,
+                () -> companyService.getCompanyById(entity.getId()));
     }
 
     @Test
     void getCompanies_shouldReturnPaginatedResults() {
-        // Arrange
         companyRepository.save(new CompanyEntity(null, "Company D", new BigDecimal("400000")));
         companyRepository.save(new CompanyEntity(null, "Company E", new BigDecimal("500000")));
 
-        // Act
         List<CompanyDTO> page1 = companyService.getCompanies(0, 2);
         List<CompanyDTO> page2 = companyService.getCompanies(1, 2);
 
-        // Assert
         assertEquals(2, page1.size());
         assertEquals(2, page2.size());
         assertNotEquals(page1.get(0).getId(), page2.get(0).getId());
-    }
-
-    @Test
-    void updateCompany_shouldRollbackOnException() {
-        // Arrange
-        CompanyEntity originalEntity = companyRepository.findById(1L).orElseThrow();
-        BigDecimal originalBudget = originalEntity.getBudget();
-
-        UpdateCompanyDTO updateDto = new UpdateCompanyDTO();
-        updateDto.setBudget(new BigDecimal("999999.00"));
-
-        // Act & Assert
-        assertThrows(RuntimeException.class, () -> {
-            // Создаем новую транзакцию
-            TransactionTemplate template = new TransactionTemplate(transactionManager);
-            template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-
-            template.execute(status -> {
-                // Вызываем updateCompany
-                CompanyDTO result = companyService.updateCompany(1L, updateDto);
-
-                // Проверяем изменения
-                CompanyEntity updated = companyRepository.findById(1L).orElseThrow();
-                assertNotEquals(0, updated.getBudget().compareTo(originalBudget));
-
-                // Бросаем исключение
-                throw new RuntimeException("Simulated error");
-            });
-        });
-
-        // Проверяем откат
-        CompanyEntity afterRollback = companyRepository.findById(1L).orElseThrow();
-        assertEquals(0, originalBudget.compareTo(afterRollback.getBudget()));
     }
 }

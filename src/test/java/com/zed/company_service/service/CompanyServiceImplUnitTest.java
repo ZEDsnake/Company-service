@@ -27,6 +27,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -53,26 +54,14 @@ class CompanyServiceImplUnitTest {
 
     @BeforeEach
     void setUp() {
-        // Инициализация тестовых данных
         entity = new CompanyEntity(1L, "Test Company", BigDecimal.valueOf(1000));
-
-        dto = new CompanyDTO();
-        dto.setId(1L);
-        dto.setName("Test Company");
-        dto.setBudget(BigDecimal.valueOf(1000));
-
-        createDto = new CreateCompanyDTO();
-        createDto.setName("Test Company");
-        createDto.setBudget(BigDecimal.valueOf(1000));
-
-        updateDto = new UpdateCompanyDTO();
-        updateDto.setName("Updated Company");
-        updateDto.setBudget(BigDecimal.valueOf(2000));
+        dto = new CompanyDTO(1L, "Test Company", BigDecimal.valueOf(1000));
+        createDto = new CreateCompanyDTO("Test Company", BigDecimal.valueOf(1000));
+        updateDto = new UpdateCompanyDTO("Updated Company", BigDecimal.valueOf(2000));
     }
 
-    // region AddCompany Tests
     @Test
-    void addCompany_ShouldReturnSavedCompany_WhenValidInput() {
+    void addCompany_ReturnSavedCompany_WhenValidInput() {
         when(mapper.toCompanyEntity(createDto)).thenReturn(entity);
         when(repository.save(entity)).thenReturn(entity);
         when(mapper.toCompanyDTO(entity)).thenReturn(dto);
@@ -85,7 +74,7 @@ class CompanyServiceImplUnitTest {
     }
 
     @Test
-    void addCompany_ShouldThrowException_WhenRepositoryFails() {
+    void addCompany_ThrowException_WhenRepositoryFails() {
         when(mapper.toCompanyEntity(createDto)).thenReturn(entity);
         when(repository.save(entity)).thenThrow(new DataAccessException("DB error") {});
 
@@ -93,11 +82,9 @@ class CompanyServiceImplUnitTest {
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("DB error");
     }
-    // endregion
 
-    // region GetCompanyById Tests
     @Test
-    void getCompanyById_ShouldReturnCompany_WhenExists() {
+    void getCompanyById_ReturnCompany_WhenExists() {
         when(repository.findById(1L)).thenReturn(Optional.of(entity));
         when(mapper.toCompanyDTO(entity)).thenReturn(dto);
 
@@ -108,7 +95,7 @@ class CompanyServiceImplUnitTest {
     }
 
     @Test
-    void getCompanyById_ShouldThrowNotFoundException_WhenNotExists() {
+    void getCompanyById_ThrowException_WhenNotExists() {
         Long invalidId = 999L;
         when(repository.findById(invalidId)).thenReturn(Optional.empty());
 
@@ -116,16 +103,11 @@ class CompanyServiceImplUnitTest {
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Company not found with id: " + invalidId);
     }
-    // endregion
 
-    // region UpdateCompany Tests
     @Test
-    void updateCompany_ShouldUpdateAndReturnCompany_WhenValidInput() {
+    void updateCompany_UpdateAndReturnCompany_ValidInput() {
         CompanyEntity updatedEntity = new CompanyEntity(1L, "Updated Company", BigDecimal.valueOf(2000));
-        CompanyDTO updatedDto = new CompanyDTO();
-        updatedDto.setId(1L);
-        updatedDto.setName("Updated Company");
-        updatedDto.setBudget(BigDecimal.valueOf(2000));
+        CompanyDTO updatedDto = new CompanyDTO(1L, "Updated Company", BigDecimal.valueOf(2000) );
 
         when(repository.findById(1L)).thenReturn(Optional.of(entity));
         when(repository.save(entity)).thenReturn(updatedEntity);
@@ -139,7 +121,7 @@ class CompanyServiceImplUnitTest {
     }
 
     @Test
-    void updateCompany_ShouldThrowNotFound_WhenCompanyNotExists() {
+    void updateCompany_ThrowNotFound_WhenCompanyNotExists() {
         Long invalidId = 999L;
         when(repository.findById(invalidId)).thenReturn(Optional.empty());
 
@@ -149,24 +131,24 @@ class CompanyServiceImplUnitTest {
     }
 
     @Test
-    void updateCompany_ShouldUpdateOnlyName_WhenPartialUpdate() {
+    void updateCompany_UpdateOnlyName_WhenPartialUpdate() {
+        // Arrange
         UpdateCompanyDTO partialUpdate = new UpdateCompanyDTO();
         partialUpdate.setName("New Name Only");
-        CompanyEntity updatedEntity = new CompanyEntity();
-        updatedEntity.setId(1L);
-        updatedEntity.setName("New Name Only"); // Новое имя
-        updatedEntity.setBudget(BigDecimal.valueOf(1000)); // Бюджет остался прежним
-        when(repository.findById(1L)).thenReturn(Optional.of(entity));
+        CompanyEntity existingEntity = new CompanyEntity(1L, "Old Name", BigDecimal.valueOf(1000) );
+        CompanyEntity updatedEntity = new CompanyEntity(1L, "New Name Only", BigDecimal.valueOf(1000));
+
+        when(repository.findById(1L)).thenReturn(Optional.of(existingEntity));
         when(repository.save(any(CompanyEntity.class))).thenReturn(updatedEntity);
-        CompanyDTO expectedDto = new CompanyDTO();
-        expectedDto.setId(1L);
-        expectedDto.setName("New Name Only");
-        expectedDto.setBudget(BigDecimal.valueOf(1000));
+
+        CompanyDTO expectedDto = new CompanyDTO(1L, "New Name Only", BigDecimal.valueOf(1000));
+
         when(mapper.toCompanyDTO(updatedEntity)).thenReturn(expectedDto);
+
         CompanyDTO result = service.updateCompany(1L, partialUpdate);
 
-        assertThat(result.getName()).isEqualTo("New Name Only");
-        assertThat(result.getBudget()).isEqualTo(BigDecimal.valueOf(1000));
+        assertEquals("New Name Only", result.getName(), "The company name should be updated.");
+        assertEquals(BigDecimal.valueOf(1000), result.getBudget(), "The budget should remain unchanged.");
 
         verify(mapper).updateEntityFromDTO(
                 argThat(dto ->
@@ -177,9 +159,8 @@ class CompanyServiceImplUnitTest {
         );
         verify(repository).save(any(CompanyEntity.class));
     }
-    // endregion
 
-    // region DeleteCompany Tests
+
     @Test
     void deleteCompany_ShouldDeleteCompany_WhenExists() {
         when(repository.findById(1L)).thenReturn(Optional.of(entity));
@@ -200,9 +181,7 @@ class CompanyServiceImplUnitTest {
 
         verify(repository, never()).delete(any());
     }
-    // endregion
 
-    // region GetCompanies Tests
     @Test
     void getCompanies_ShouldReturnPageOfCompanies_WhenValidPageable() {
         Pageable pageable = PageRequest.of(0, 10);
@@ -237,5 +216,4 @@ class CompanyServiceImplUnitTest {
         assertThatThrownBy(() -> service.getCompanies(0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
     }
-    // endregion
 }
