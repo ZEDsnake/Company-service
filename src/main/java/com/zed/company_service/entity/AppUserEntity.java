@@ -1,4 +1,4 @@
-package com.zed.user_service.entity;
+package com.zed.company_service.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -22,15 +22,12 @@ public class AppUserEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "first name")
+    @Column(name = "first_name")
     private String firstName;
 
-    @Column(name = "last name")
+    @Column(name = "last_name")
     private String lastName;
 
-    @Column(name = "phone_number")
+    @Column(name = "phone_number", unique = true, nullable = false)
     private String phoneNumber;
-
-    @Column(name = "company_id")
-    private Long companyId;
 }

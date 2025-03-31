@@ -1,6 +1,5 @@
-package com.zed.user_service.dto;
+package com.zed.company_service.dto;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
@@ -17,9 +16,7 @@ public class UpdateUserDTO {
     @NotBlank(message = "Last name is required")
     private String lastName;
 
-    @Pattern(regexp = "^\\+?[0-9\\-\\s]+$", message = "Invalid phone number format")
+    @NotBlank
+    @Pattern(regexp = "^\\+7[0-9]{10}$", message = "Phone must be in format +79123456789")
     private String phoneNumber;
-
-    @Min(1)
-    private Long companyId;
 }

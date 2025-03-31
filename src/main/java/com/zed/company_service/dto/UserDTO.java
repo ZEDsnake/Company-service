@@ -1,4 +1,4 @@
-package com.zed.user_service.dto;
+package com.zed.company_service.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,5 +12,4 @@ public class UserDTO {
     private String firstName;
     private String lastName;
     private String phoneNumber;
-    private Long companyId; // Согласно заданию - возвращаем компанию целиком, а не только ID
 }

@@ -1,8 +1,6 @@
-package com.zed.user_service.dto;
+package com.zed.company_service.dto;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,10 +16,7 @@ public class CreateUserDTO {
     @NotBlank(message = "Last name is required")
     private String lastName;
 
-    @Pattern(regexp = "^\\+?[0-9\\-\\s]+$", message = "Invalid phone number format")
+    @NotBlank
+    @Pattern(regexp = "^\\+7[0-9]{10}$", message = "Phone must be in format +79123456789")
     private String phoneNumber;
-
-    @NotNull(message = "Company ID is required")
-    @Min(value = 1, message = "Company ID must be positive")
-    private Long companyId;
 }

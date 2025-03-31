@@ -1,10 +1,10 @@
-package com.zed.user_service.repository;
+package com.zed.company_service.repository;
 
-import com.zed.user_service.entity.AppUserEntity;
-import org.apache.catalina.User;
+import com.zed.company_service.entity.AppUserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UserRepository extends JpaRepository<AppUserEntity, Long> {
+    boolean existsByPhoneNumber(String phoneNumber);
 }

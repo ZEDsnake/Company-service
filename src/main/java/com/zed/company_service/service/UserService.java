@@ -1,8 +1,8 @@
-package com.zed.user_service.service;
+package com.zed.company_service.service;
 
-import com.zed.user_service.dto.CreateUserDTO;
-import com.zed.user_service.dto.UpdateUserDTO;
-import com.zed.user_service.dto.UserDTO;
+import com.zed.company_service.dto.CreateUserDTO;
+import com.zed.company_service.dto.UpdateUserDTO;
+import com.zed.company_service.dto.UserDTO;
 
 import java.util.List;
 

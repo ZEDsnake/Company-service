@@ -1,9 +1,9 @@
-package com.zed.user_service.controller;
+package com.zed.company_service.controller;
 
-import com.zed.user_service.dto.CreateUserDTO;
-import com.zed.user_service.dto.UpdateUserDTO;
-import com.zed.user_service.dto.UserDTO;
-import com.zed.user_service.service.UserService;
+import com.zed.company_service.dto.CreateUserDTO;
+import com.zed.company_service.dto.UpdateUserDTO;
+import com.zed.company_service.dto.UserDTO;
+import com.zed.company_service.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;

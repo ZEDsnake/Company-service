@@ -1,9 +1,9 @@
-package com.zed.user_service.mapper;
+package com.zed.company_service.mapper;
 
-import com.zed.user_service.dto.CreateUserDTO;
-import com.zed.user_service.dto.UpdateUserDTO;
-import com.zed.user_service.dto.UserDTO;
-import com.zed.user_service.entity.AppUserEntity;
+import com.zed.company_service.dto.CreateUserDTO;
+import com.zed.company_service.dto.UpdateUserDTO;
+import com.zed.company_service.dto.UserDTO;
+import com.zed.company_service.entity.AppUserEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
@@ -17,10 +17,8 @@ public interface UserMapper{
 
     UserDTO toUserDTO(AppUserEntity appUserEntity);
 
-    // Обновление Entity из UpdateDTO
     @Mapping(target = "id", ignore = true)
     void updateEntityFromDTO(UpdateUserDTO updateUserDTO, @MappingTarget AppUserEntity appUserEntity);
 
-    // Преобразование списка Entity в список DTO
     List<UserDTO> toUserDTOList(List<AppUserEntity> userEntities);
 }
