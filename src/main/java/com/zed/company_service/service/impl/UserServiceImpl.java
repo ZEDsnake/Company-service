@@ -4,7 +4,7 @@ package com.zed.company_service.service.impl;
 import com.zed.company_service.dto.CreateUserDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
-import com.zed.company_service.entity.AppUserEntity;
+import com.zed.company_service.entity.User;
 import com.zed.company_service.exception.NotFoundException;
 import com.zed.company_service.exception.AlreadyExistsException;
 import com.zed.company_service.mapper.UserMapper;
@@ -31,13 +31,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDTO createUser(CreateUserDTO createUserDTO) {
-        if (userRepository.existsByPhoneNumber(createUserDTO.getPhoneNumber())) {
-            throw new AlreadyExistsException(
-                    "User with phone number " + createUserDTO.getPhoneNumber() + " already exists");
-        }
-
-        AppUserEntity appUserEntity = userMapper.toUserEntity(createUserDTO);
-        AppUserEntity savedEntity = userRepository.save(appUserEntity);
+        checkPhoneAlreadyExists(createUserDTO.getPhoneNumber());
+        User user = userMapper.toUserEntity(createUserDTO);
+        User savedEntity = userRepository.save(user);
         UserDTO result = userMapper.toUserDTO(savedEntity);
         log.info("User created successfully: {}", result);
         return result;
@@ -46,7 +42,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDTO getUserById(Long id) {
-        AppUserEntity userEntity = findUserById(id);
+        User userEntity = findUserById(id);
         UserDTO result = userMapper.toUserDTO(userEntity);
         log.info("UserService: getUserById method result: {}", result);
         return result;
@@ -55,16 +51,11 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDTO updateUser(Long id, UpdateUserDTO updateUserDTO) {
-        AppUserEntity existingUser = findUserById(id);
-        if (!existingUser.getPhoneNumber().equals(updateUserDTO.getPhoneNumber())) {
-            if (userRepository.existsByPhoneNumber(updateUserDTO.getPhoneNumber())) {
-                throw new AlreadyExistsException(
-                        "Phone number " + updateUserDTO.getPhoneNumber() + " is already in use");
-            }
-        }
+        User existingUser = findUserById(id);
+        validatePhoneNumberChange(existingUser, updateUserDTO);
 
         userMapper.updateEntityFromDTO(updateUserDTO, existingUser);
-        AppUserEntity updatedEntity = userRepository.save(existingUser);
+        User updatedEntity = userRepository.save(existingUser);
         UserDTO result = userMapper.toUserDTO(updatedEntity);
         log.info("User updated successfully: {}", result);
         return result;
@@ -73,8 +64,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteUser(Long id) {
-        AppUserEntity appUserEntity = findUserById(id);
-        userRepository.delete(appUserEntity);
+        User user = findUserById(id);
+        userRepository.delete(user);
         log.info("UserService: User with id={} deleted successfully", id);
     }
 
@@ -82,14 +73,31 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public List<UserDTO> getAllUsers(int page, int size) {
         Pageable pageable = PageRequest.of(page,size);
-        Page<AppUserEntity> userPage = userRepository.findAll(pageable);
+        Page<User> userPage = userRepository.findAll(pageable);
         List<UserDTO> userDTOList = userMapper.toUserDTOList(userPage.getContent());
         log.info("Retrieved {} users for page {} with size {}", userDTOList.size(), page, size);
         return userDTOList;
     }
 
-    private AppUserEntity findUserById(Long id) {
+    private User findUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(()->new NotFoundException("User not found with id: " + id));
+    }
+
+    private void checkPhoneAlreadyExists(String phoneNumber) {
+        if (userRepository.existsByPhoneNumber(phoneNumber)) {
+            throw new AlreadyExistsException(
+                    "User with phone number " + phoneNumber + " already exists");
+        }
+    }
+
+    private void validatePhoneNumberChange(User existingUser, UpdateUserDTO updateUserDTO) {
+        if (isPhoneNumberChanged(existingUser, updateUserDTO)) {
+            checkPhoneAlreadyExists(updateUserDTO.getPhoneNumber());
+        }
+    }
+
+    private boolean isPhoneNumberChanged(User existingUser, UpdateUserDTO updateUserDTO) {
+        return !existingUser.getPhoneNumber().equals(updateUserDTO.getPhoneNumber());
     }
 }
