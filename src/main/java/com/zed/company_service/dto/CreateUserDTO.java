@@ -1,6 +1,7 @@
 package com.zed.company_service.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -22,4 +23,7 @@ public class CreateUserDTO {
     @NotBlank
     @Pattern(regexp = "^\\+7[0-9]{10}$", message = "Phone must be in format +79123456789")
     private String phoneNumber;
+
+    @NotNull
+    private Long companyId;
 }
