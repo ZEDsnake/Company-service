@@ -52,7 +52,7 @@ public class CompanyController {
     public CompanyDTO updateCompanyDTO(@PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id,
                                        @Valid @RequestBody UpdateCompanyDTO updateCompanyDTO) {
         log.info("Put request received: \"/companies/{}\" with body: {}", id, updateCompanyDTO);
-        return companyService.updateCompany(id,updateCompanyDTO);
+        return companyService.updateCompany(id, updateCompanyDTO);
     }
 
     @DeleteMapping("/{id}")

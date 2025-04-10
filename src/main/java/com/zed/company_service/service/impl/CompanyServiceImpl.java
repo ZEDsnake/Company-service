@@ -28,16 +28,17 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     @Transactional
     public CompanyDTO addCompany(CreateCompanyDTO createCompanyDTO) {
-        CompanyEntity companyEntity = companyMapper.toCompanyEntity(createCompanyDTO); // Преобразуем CreateCompanyDTO в Entity
+        CompanyEntity companyEntity = companyMapper.toCompanyEntity(createCompanyDTO);
         CompanyEntity savedEntity = companyRepository.save(companyEntity);
-        CompanyDTO result = companyMapper.toCompanyDTO(savedEntity); // Преобразуем Entity в CompanyDTO
+        CompanyDTO result = companyMapper.toCompanyDTO(savedEntity);
         log.info("CompanyService: addCompany method result: {}", result);
-        return result; // Возвращаем CompanyDTO
+        return result;
     }
 
     @Override
     public CompanyDTO getCompanyById(Long id) {
         CompanyEntity companyEntity = findCompanyById(id);
+        companyEntity.getEmployees().size();
         CompanyDTO result = companyMapper.toCompanyDTO(companyEntity);
         log.info("CompanyService: getCompanyById method result: {}", result);
         return result;
@@ -46,30 +47,30 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     @Transactional
     public CompanyDTO updateCompany(Long id, UpdateCompanyDTO updateCompanyDTO) {
-        CompanyEntity companyEntity = findCompanyById(id); // Находим компанию по ID
-        companyMapper.updateEntityFromDTO(updateCompanyDTO, companyEntity); // Обновляем поля
-        CompanyEntity updatedEntity = companyRepository.save(companyEntity); // Сохраняем изменения
-        CompanyDTO result = companyMapper.toCompanyDTO(updatedEntity); // Преобразуем Entity в DTO
-        log.info("CompanyService: updateCompany method result: {}", result); // Логируем результат
-        return result; // Возвращаем обновлённую компанию
+        CompanyEntity companyEntity = findCompanyById(id);
+        companyMapper.updateEntityFromDTO(updateCompanyDTO, companyEntity);
+        CompanyEntity updatedEntity = companyRepository.save(companyEntity);
+        CompanyDTO result = companyMapper.toCompanyDTO(updatedEntity);
+        log.info("CompanyService: updateCompany method result: {}", result);
+        return result;
     }
 
     @Override
     @Transactional
     public void deleteCompany(Long id) {
-        CompanyEntity companyEntity = findCompanyById(id); // Находим компанию по ID
-        companyRepository.delete(companyEntity);// Удаляем компанию
-        log.info("CompanyService: Company with id={} deleted successfully", id);//логгируем успешное удаление
+        CompanyEntity companyEntity = findCompanyById(id);
+        companyRepository.delete(companyEntity);
+        log.info("CompanyService: Company with id={} deleted successfully", id);
     }
 
     @Override
     @Transactional
     public List<CompanyDTO> getCompanies(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size); // Создаём объект пагинации
-        Page<CompanyEntity> companyPage = companyRepository.findAll(pageable); // Получаем страницу компаний
+        Pageable pageable = PageRequest.of(page, size);
+        Page<CompanyEntity> companyPage = companyRepository.findAll(pageable);
         List<CompanyDTO> companyDTOList = companyMapper.toCompanyDTOList(companyPage.getContent());
         log.info("Retrieved {} companies for page {} with size {}", companyDTOList.size(), page, size);
-        return  companyDTOList;
+        return companyDTOList;
     }
 
     private CompanyEntity findCompanyById(Long id) {

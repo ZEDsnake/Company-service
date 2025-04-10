@@ -4,10 +4,12 @@ package com.zed.company_service.service.impl;
 import com.zed.company_service.dto.CreateUserDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
+import com.zed.company_service.entity.CompanyEntity;
 import com.zed.company_service.entity.User;
 import com.zed.company_service.exception.NotFoundException;
 import com.zed.company_service.exception.AlreadyExistsException;
 import com.zed.company_service.mapper.UserMapper;
+import com.zed.company_service.repository.CompanyRepository;
 import com.zed.company_service.repository.UserRepository;
 import com.zed.company_service.service.UserService;
 import jakarta.transaction.Transactional;
@@ -27,12 +29,18 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final CompanyRepository companyRepository;
 
     @Override
     @Transactional
     public UserDTO createUser(CreateUserDTO createUserDTO) {
         checkPhoneAlreadyExists(createUserDTO.getPhoneNumber());
+
+        CompanyEntity company = findCompanyById(createUserDTO.getCompanyId());
+
         User user = userMapper.toUserEntity(createUserDTO);
+        user.setCompany(company);
+
         User savedEntity = userRepository.save(user);
         UserDTO result = userMapper.toUserDTO(savedEntity);
         log.info("User created successfully: {}", result);
@@ -55,6 +63,9 @@ public class UserServiceImpl implements UserService {
         validatePhoneNumberChange(existingUser, updateUserDTO);
 
         userMapper.updateEntityFromDTO(updateUserDTO, existingUser);
+
+        updateCompanyIfChanged(existingUser, updateUserDTO.getCompanyId());
+
         User updatedEntity = userRepository.save(existingUser);
         UserDTO result = userMapper.toUserDTO(updatedEntity);
         log.info("User updated successfully: {}", result);
@@ -72,7 +83,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public List<UserDTO> getAllUsers(int page, int size) {
-        Pageable pageable = PageRequest.of(page,size);
+        Pageable pageable = PageRequest.of(page, size);
         Page<User> userPage = userRepository.findAll(pageable);
         List<UserDTO> userDTOList = userMapper.toUserDTOList(userPage.getContent());
         log.info("Retrieved {} users for page {} with size {}", userDTOList.size(), page, size);
@@ -82,6 +93,11 @@ public class UserServiceImpl implements UserService {
     private User findUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(()->new NotFoundException("User not found with id: " + id));
+    }
+
+    private CompanyEntity findCompanyById(Long id) {
+        return companyRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Company not found with id: " + id));
     }
 
     private void checkPhoneAlreadyExists(String phoneNumber) {
@@ -99,5 +115,13 @@ public class UserServiceImpl implements UserService {
 
     private boolean isPhoneNumberChanged(User existingUser, UpdateUserDTO updateUserDTO) {
         return !existingUser.getPhoneNumber().equals(updateUserDTO.getPhoneNumber());
+    }
+
+    private void updateCompanyIfChanged(User user, Long newCompanyId) {
+        if (newCompanyId != null &&
+                (user.getCompany() == null || !newCompanyId.equals(user.getCompany().getId()))) {
+            CompanyEntity newCompany = findCompanyById(newCompanyId);
+            user.setCompany(newCompany);
+        }
     }
 }

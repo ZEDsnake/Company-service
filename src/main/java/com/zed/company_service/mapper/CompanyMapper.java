@@ -16,6 +16,7 @@ import java.util.List;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = UserMapper.class)
 public interface CompanyMapper {
 
+    @Mapping(target = "employees", source = "employees")
     CompanyDTO toCompanyDTO(CompanyEntity entity);
 
     List<CompanyDTO> toCompanyDTOList(List<CompanyEntity> entities);
@@ -24,6 +25,5 @@ public interface CompanyMapper {
     CompanyEntity toCompanyEntity(CreateCompanyDTO dto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    @Mapping(target = "employees", ignore = true)
     void updateEntityFromDTO(UpdateCompanyDTO dto, @MappingTarget CompanyEntity entity);
 }

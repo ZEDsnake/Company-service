@@ -1,18 +1,14 @@
 package com.zed.company_service.dto;
 
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.util.List;
-
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-public class CompanyDTO {
+public class CompanyInfoDTO {
     private Long id;
     private String name;
-    private BigDecimal budget;
-    private List<UserDTO> employees;
 }

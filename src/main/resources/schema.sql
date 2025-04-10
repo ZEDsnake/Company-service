@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20) UNIQUE NOT NULL,
-    company_id BIGINT
+    company_id BIGINT,
+    FOREIGN KEY (company_id) REFERENCES companies(id)
 );
