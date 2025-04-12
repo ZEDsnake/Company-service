@@ -2,8 +2,10 @@ package com.zed.company_service.mapper;
 
 import com.zed.company_service.dto.CompanyInfoDTO;
 import com.zed.company_service.dto.CreateUserDTO;
+import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
+import com.zed.company_service.dto.UserInfoDTO;
 import com.zed.company_service.entity.CompanyEntity;
 import com.zed.company_service.entity.User;
 import org.mapstruct.BeanMapping;
@@ -19,6 +21,8 @@ import java.util.List;
 public interface UserMapper{
 
     @Mapping(target = "company", source = "company")
+    EmployeeDTO toEmployeeDTO(User user);
+
     UserDTO toUserDTO(User user);
 
     @Mapping(target = "company", ignore = true)
@@ -31,4 +35,6 @@ public interface UserMapper{
     List<UserDTO> toUserDTOList(List<User> userEntities);
 
     CompanyInfoDTO toCompanyInfoDTO(CompanyEntity company);
+
+    UserInfoDTO toUserInfoDTO(User user);
 }

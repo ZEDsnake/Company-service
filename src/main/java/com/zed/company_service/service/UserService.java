@@ -1,6 +1,7 @@
 package com.zed.company_service.service;
 
 import com.zed.company_service.dto.CreateUserDTO;
+import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
 
@@ -16,4 +17,6 @@ public interface UserService {
     void deleteUser(Long id);
 
     List<UserDTO> getAllUsers(int page, int size);
+
+    EmployeeDTO getUserWithCompany(Long id);
 }

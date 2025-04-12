@@ -1,6 +1,7 @@
 package com.zed.company_service.service.impl;
 
 import com.zed.company_service.dto.CompanyDTO;
+import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 import com.zed.company_service.entity.CompanyEntity;
@@ -36,11 +37,21 @@ public class CompanyServiceImpl implements CompanyService {
     }
 
     @Override
+    @Transactional
     public CompanyDTO getCompanyById(Long id) {
         CompanyEntity companyEntity = findCompanyById(id);
-        companyEntity.getEmployees().size();
         CompanyDTO result = companyMapper.toCompanyDTO(companyEntity);
         log.info("CompanyService: getCompanyById method result: {}", result);
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public CompanyEmployeesDTO getCompanyWithEmployees(Long id) {
+        CompanyEntity companyEntity = findCompanyById(id);
+        companyEntity.getEmployees().size(); // форсируем загрузку lazy-связи
+        CompanyEmployeesDTO result = companyMapper.toCompanyEmployeesDTO(companyEntity);
+        log.info("CompanyService: getCompanyWithEmployees method result: {}", result);
         return result;
     }
 

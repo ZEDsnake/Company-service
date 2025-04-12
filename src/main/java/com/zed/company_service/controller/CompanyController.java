@@ -1,6 +1,7 @@
 package com.zed.company_service.controller;
 
 import com.zed.company_service.dto.CompanyDTO;
+import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 import com.zed.company_service.service.CompanyService;
@@ -45,6 +46,13 @@ public class CompanyController {
     public CompanyDTO getCompanyById(@PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id) {
         log.info("GET request received: \"/companies/{}\"", id);
         return companyService.getCompanyById(id);
+    }
+
+    @GetMapping("/{id}/employees")
+    @ResponseStatus(HttpStatus.OK)
+    public CompanyEmployeesDTO getCompanyWithEmployees(@PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id) {
+        log.info("GET request received: \"/companies/{}/employees\"", id);
+        return companyService.getCompanyWithEmployees(id);
     }
 
     @PutMapping("/{id}")

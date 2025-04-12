@@ -1,6 +1,7 @@
 package com.zed.company_service.mapper;
 
 import com.zed.company_service.dto.CompanyDTO;
+import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 import com.zed.company_service.entity.CompanyEntity;
@@ -17,6 +18,8 @@ import java.util.List;
 public interface CompanyMapper {
 
     @Mapping(target = "employees", source = "employees")
+    CompanyEmployeesDTO toCompanyEmployeesDTO(CompanyEntity entity);
+
     CompanyDTO toCompanyDTO(CompanyEntity entity);
 
     List<CompanyDTO> toCompanyDTOList(List<CompanyEntity> entities);

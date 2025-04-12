@@ -2,6 +2,7 @@ package com.zed.company_service.service.impl;
 
 
 import com.zed.company_service.dto.CreateUserDTO;
+import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
 import com.zed.company_service.entity.CompanyEntity;
@@ -53,6 +54,15 @@ public class UserServiceImpl implements UserService {
         User userEntity = findUserById(id);
         UserDTO result = userMapper.toUserDTO(userEntity);
         log.info("UserService: getUserById method result: {}", result);
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public EmployeeDTO getUserWithCompany(Long id) {
+        User user = findUserById(id);
+        EmployeeDTO result = userMapper.toEmployeeDTO(user); // company внутри уже маппится как CompanyInfoDTO
+        log.info("UserService: getUserWithCompany method result: {}", result);
         return result;
     }
 

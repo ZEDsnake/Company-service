@@ -9,6 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Data
 public class CompanyInfoDTO {
-    private Long id;
     private String name;
 }

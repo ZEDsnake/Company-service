@@ -1,6 +1,7 @@
 package com.zed.company_service.service;
 
 import com.zed.company_service.dto.CompanyDTO;
+import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 
@@ -11,7 +12,9 @@ public interface CompanyService {
 
     CompanyDTO getCompanyById(Long id);
 
-    CompanyDTO updateCompany(Long id,UpdateCompanyDTO updateCompanyDTO);
+    CompanyEmployeesDTO getCompanyWithEmployees(Long id);
+
+    CompanyDTO updateCompany(Long id, UpdateCompanyDTO updateCompanyDTO);
 
     void deleteCompany(Long id);
 
