@@ -2,7 +2,9 @@ package com.zed.company_service.controller;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zed.company_service.dto.CompanyInfoDTO;
 import com.zed.company_service.dto.CreateUserDTO;
+import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
 import com.zed.company_service.exception.AlreadyExistsException;
@@ -46,15 +48,17 @@ class UserControllerTest {
     private CreateUserDTO createUserDTO;
     private UpdateUserDTO updateUserDTO;
     private UserDTO userDTO;
+    private EmployeeDTO employeeDTO;
 
     @BeforeEach
     void setup() {
-        createUserDTO = new CreateUserDTO("Ivan", "Ivanov", "+79123456789");
-        updateUserDTO = new UpdateUserDTO("Petr", "Petrov", "+79234567890");
+        createUserDTO = new CreateUserDTO("Ivan", "Ivanov", "+79123456789", 1L);
+        updateUserDTO = new UpdateUserDTO("Petr", "Petrov", "+79234567890", 1L);
         userDTO = new UserDTO(1L, "Ivan", "Ivanov", "+79123456789");
+        employeeDTO = new EmployeeDTO(1L, "Ivan", "Ivanov", "+79123456789",
+                new CompanyInfoDTO("Test Company"));
     }
 
-    // ------------------------- Create User Tests -------------------------
     @Test
     void createUser_ValidRequest_ReturnsCreated() throws Exception {
         when(userService.createUser(any(CreateUserDTO.class))).thenReturn(userDTO);
@@ -67,6 +71,28 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.firstName").value(userDTO.getFirstName()))
                 .andExpect(jsonPath("$.lastName").value(userDTO.getLastName()))
                 .andExpect(jsonPath("$.phoneNumber").value(userDTO.getPhoneNumber()));
+    }
+
+    @Test
+    void createUser_CompanyIdNull_ReturnsBadRequest() throws Exception {
+        createUserDTO.setCompanyId(null);
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createUserDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.companyId").value("Company ID is required"));
+    }
+
+    @Test
+    void createUser_CompanyIdInvalid_ReturnsBadRequest() throws Exception {
+        createUserDTO.setCompanyId(0L);
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createUserDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.companyId").value("Company ID must be positive"));
     }
 
     @Test
@@ -236,7 +262,33 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("Phone already exists"));
     }
 
-    // ------------------------- Get User Tests -------------------------
+    @Test
+    void getUserByIdWithCompany_ValidId_ReturnsOk() throws Exception {
+        when(userService.getUserWithCompany(1L)).thenReturn(employeeDTO);
+
+        mockMvc.perform(get("/users/{id}/info", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(employeeDTO.getId()))
+                .andExpect(jsonPath("$.firstName").value(employeeDTO.getFirstName()))
+                .andExpect(jsonPath("$.company.name").value(employeeDTO.getCompany().getName()));
+    }
+
+    @Test
+    void getUserByIdWithCompany_InvalidId_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/users/{id}/info", 0L))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("ID must be a positive number and not less than 1"));
+    }
+
+    @Test
+    void getUserByIdWithCompany_NotFound_ReturnsNotFound() throws Exception {
+        when(userService.getUserWithCompany(999L)).thenThrow(new NotFoundException("User not found"));
+
+        mockMvc.perform(get("/users/{id}/info", 999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("User not found"));
+    }
+
     @Test
     void getUserById_ValidId_ReturnsOk() throws Exception {
         when(userService.getUserById(1L)).thenReturn(userDTO);
@@ -331,7 +383,6 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("Phone number already in use"));
     }
 
-    // ------------------------- Update User Tests -------------------------
     @Test
     void updateUser_ValidRequest_ReturnsOk() throws Exception {
         when(userService.updateUser(anyLong(), any(UpdateUserDTO.class))).thenReturn(userDTO);
@@ -340,6 +391,28 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateUserDTO)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void updateUser_CompanyIdNull_ReturnsBadRequest() throws Exception {
+        updateUserDTO.setCompanyId(null);
+
+        mockMvc.perform(put("/users/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateUserDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.companyId").value("Company ID is required"));
+    }
+
+    @Test
+    void updateUser_CompanyIdNegative_ReturnsBadRequest() throws Exception {
+        updateUserDTO.setCompanyId(-1L); // Устанавливаем отрицательный companyId
+
+        mockMvc.perform(put("/users/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateUserDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.companyId").value("Company ID must be positive"));
     }
 
     @Test
@@ -548,8 +621,7 @@ class UserControllerTest {
 
     @Test
     void updateUser_SamePhoneNoConflict_ReturnsOk() throws Exception {
-        // Пользователь обновляет данные, но оставляет свой текущий номер
-        updateUserDTO.setPhoneNumber("+79123456789"); // Тот же номер, что был ранее
+        updateUserDTO.setPhoneNumber("+79123456789");
         userDTO.setPhoneNumber("+79123456789");
 
         when(userService.updateUser(anyLong(), any(UpdateUserDTO.class))).thenReturn(userDTO);
@@ -560,7 +632,6 @@ class UserControllerTest {
                 .andExpect(status().isOk());
     }
 
-    // ------------------------- Delete User Tests -------------------------
     @Test
     void deleteUser_ValidId_ReturnsNoContent() throws Exception {
         mockMvc.perform(delete("/users/{id}", 1L))
@@ -588,7 +659,6 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("User not found with id: " + id));
     }
 
-    // ------------------------- Get All Users Tests -------------------------
     @Test
     void getAllUsers_ValidPagination_ReturnsOk() throws Exception {
         List<UserDTO> users = List.of(
@@ -650,7 +720,7 @@ class UserControllerTest {
     void getAllUsers_WithDefaultPagination_ReturnsOk() throws Exception {
         when(userService.getAllUsers(0, 10)).thenReturn(List.of(userDTO));
 
-        mockMvc.perform(get("/users")) // Без параметров
+        mockMvc.perform(get("/users"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
     }

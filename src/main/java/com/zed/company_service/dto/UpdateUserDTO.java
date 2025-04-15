@@ -1,5 +1,6 @@
 package com.zed.company_service.dto;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -24,6 +25,7 @@ public class UpdateUserDTO {
     @Pattern(regexp = "^\\+7[0-9]{10}$", message = "Phone must be in format +79123456789")
     private String phoneNumber;
 
-    @NotNull
+    @NotNull(message = "Company ID is required")
+    @Min(value = 1, message = "Company ID must be positive")
     private Long companyId;
 }

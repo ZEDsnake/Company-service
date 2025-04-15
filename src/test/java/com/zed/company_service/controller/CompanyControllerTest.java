@@ -2,8 +2,10 @@ package com.zed.company_service.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zed.company_service.dto.CompanyDTO;
+import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
+import com.zed.company_service.dto.UserInfoDTO;
 import com.zed.company_service.exception.NotFoundException;
 import com.zed.company_service.service.CompanyService;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,12 +47,58 @@ class CompanyControllerTest {
     private CreateCompanyDTO createCompanyDTO = new CreateCompanyDTO();
     private UpdateCompanyDTO updateCompanyDTO = new UpdateCompanyDTO();
     private CompanyDTO companyDTO = new CompanyDTO();
+    private CompanyEmployeesDTO companyEmployeesDTO;
+    private List<UserInfoDTO> employees;
 
     @BeforeEach
     void setup() {
         createCompanyDTO = new CreateCompanyDTO("Test Company", BigDecimal.valueOf(1000));
         updateCompanyDTO = new UpdateCompanyDTO("Updated Company", BigDecimal.valueOf(2000));
         companyDTO = new CompanyDTO(1L, "Test Company", BigDecimal.valueOf(1000));
+        employees = List.of(
+                new UserInfoDTO("Ivan", "Ivanov", "+79991234567"),
+                new UserInfoDTO("Maria", "Petrova", "+79998765432")
+        );
+        companyEmployeesDTO = new CompanyEmployeesDTO(1L, "Test Company", BigDecimal.valueOf(1000), employees);
+    }
+
+    @Test
+    void getCompanyWithEmployees_ValidId_ReturnsOk() throws Exception {
+        when(companyService.getCompanyWithEmployees(1L)).thenReturn(companyEmployeesDTO);
+
+        mockMvc.perform(get("/companies/{id}/employees", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(companyEmployeesDTO.getId()))
+                .andExpect(jsonPath("$.name").value(companyEmployeesDTO.getName()))
+                .andExpect(jsonPath("$.budget").value(companyEmployeesDTO.getBudget().doubleValue()))
+
+                .andExpect(jsonPath("$.employees", hasSize(2)))
+
+                .andExpect(jsonPath("$.employees[0].firstName").value(employees.get(0).getFirstName()))
+                .andExpect(jsonPath("$.employees[0].lastName").value(employees.get(0).getLastName()))
+                .andExpect(jsonPath("$.employees[0].phoneNumber").value(employees.get(0).getPhoneNumber()))
+                
+                .andExpect(jsonPath("$.employees[1].firstName").value(employees.get(1).getFirstName()))
+                .andExpect(jsonPath("$.employees[1].lastName").value(employees.get(1).getLastName()))
+                .andExpect(jsonPath("$.employees[1].phoneNumber").value(employees.get(1).getPhoneNumber()));
+    }
+
+    @Test
+    void getCompanyWithEmployees_NotFound_ReturnsNotFound() throws Exception {
+        Long id = 999L;
+        when(companyService.getCompanyWithEmployees(id))
+                .thenThrow(new NotFoundException("Company not found with id: " + id));
+
+        mockMvc.perform(get("/companies/{id}/employees", id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Company not found with id: " + id));
+    }
+
+    @Test
+    void getCompanyWithEmployees_InvalidId_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/companies/0/employees"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("ID must be a positive number and not less than 1"));
     }
 
     @Test

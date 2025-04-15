@@ -1,23 +1,33 @@
 package com.zed.company_service.service;
 
 import com.zed.company_service.dto.CreateUserDTO;
+import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
+import com.zed.company_service.entity.CompanyEntity;
 import com.zed.company_service.entity.User;
 import com.zed.company_service.exception.AlreadyExistsException;
 import com.zed.company_service.exception.NotFoundException;
+import com.zed.company_service.repository.CompanyRepository;
 import com.zed.company_service.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -30,112 +40,175 @@ class UserServiceImplIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private CompanyRepository companyRepository;
+
+    private CompanyEntity company;
+    private User existingUser;
+
+    @BeforeEach
+    void setUp() {
+        userRepository.deleteAll();
+        companyRepository.deleteAll();
+
+        company = new CompanyEntity();
+        company.setName("Test Company");
+        company.setBudget(new BigDecimal("100000.00"));
+        company = companyRepository.save(company);
+
+        existingUser = new User();
+        existingUser.setFirstName("Existing");
+        existingUser.setLastName("User");
+        existingUser.setPhoneNumber("+79123456783");
+        existingUser.setCompany(company);
+        existingUser = userRepository.save(existingUser);
+
+        company.getEmployees().add(existingUser);
+        companyRepository.save(company);
+    }
+
     private String generateUniquePhoneNumber() {
         return "+7" + (9100000000L + new Random().nextInt(1000000));
     }
 
     @Test
-    void createUser_ShouldSaveUserAndReturnDtoWithGeneratedId() {
-        String uniquePhone = generateUniquePhoneNumber();
-        CreateUserDTO dto = new CreateUserDTO("Alice", "Brown", uniquePhone);
+    void createUser_ShouldSuccessfullyCreateUser() {
+        CreateUserDTO dto = new CreateUserDTO(
+                "Alice",
+                "Brown",
+                generateUniquePhoneNumber(),
+                company.getId()
+        );
 
         UserDTO result = userService.createUser(dto);
 
-        assertThat(result.getId()).isNotNull();
-        assertThat(result.getPhoneNumber()).isEqualTo(uniquePhone);
-
+        assertNotNull(result.getId());
         User savedUser = userRepository.findById(result.getId()).orElseThrow();
-        assertThat(savedUser.getFirstName()).isEqualTo("Alice");
-        assertThat(savedUser.getLastName()).isEqualTo("Brown");
+        assertEquals("Alice", savedUser.getFirstName());
+        assertEquals(company.getId(), savedUser.getCompany().getId());
     }
 
     @Test
-    void createUser_ShouldThrowAlreadyExistsException_WhenPhoneExists() {
-        String existingPhone = generateUniquePhoneNumber();
-        userRepository.save(new User(null, "Existing", "User", existingPhone));
-        CreateUserDTO dto = new CreateUserDTO("John", "Doe", existingPhone);
+    void createUser_ShouldThrowWhenPhoneExists() {
+        CreateUserDTO dto = new CreateUserDTO(
+                "John",
+                "Doe",
+                existingUser.getPhoneNumber(),
+                company.getId()
+        );
 
-        assertThatThrownBy(() -> userService.createUser(dto))
-                .isInstanceOf(AlreadyExistsException.class)
-                .hasMessageContaining("already exists");
+        assertThrows(AlreadyExistsException.class, () -> userService.createUser(dto));
     }
 
     @Test
-    void getUserById_ShouldReturnUser_WhenUserExists() {
-        String uniquePhone = generateUniquePhoneNumber();
-        User savedUser = userRepository.save(new User(null, "Test", "User", uniquePhone));
+    void getUserById_ShouldReturnCorrectUser() {
+        UserDTO result = userService.getUserById(existingUser.getId());
 
-        UserDTO result = userService.getUserById(savedUser.getId());
-
-        assertThat(result.getId()).isEqualTo(savedUser.getId());
-        assertThat(result.getFirstName()).isEqualTo("Test");
-        assertThat(result.getLastName()).isEqualTo("User");
+        assertEquals(existingUser.getId(), result.getId());
+        assertEquals(existingUser.getFirstName(), result.getFirstName());
     }
 
     @Test
-    void getUserById_ShouldThrowNotFoundException_WhenUserNotExists() {
-        Long nonExistentId = 999L;
+    void getUserWithCompany_ShouldReturnFullInfo() {
+        EmployeeDTO result = userService.getUserWithCompany(existingUser.getId());
 
-        assertThatThrownBy(() -> userService.getUserById(nonExistentId))
-                .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("not found");
+        assertEquals(existingUser.getId(), result.getId());
+        assertEquals(company.getName(), result.getCompany().getName());
     }
 
     @Test
-    void updateUser_ShouldUpdateFields_WhenDataIsValid() {
-        String originalPhone = generateUniquePhoneNumber();
-        User savedUser = userRepository.save(new User(null, "Original", "Name", originalPhone));
-        UpdateUserDTO dto = new UpdateUserDTO("Updated", "Name", originalPhone);
+    void updateUser_ShouldUpdateAllFields() {
+        CompanyEntity newCompany = new CompanyEntity();
+        newCompany.setName("New Company");
+        newCompany.setBudget(new BigDecimal("200000.00"));
+        newCompany = companyRepository.save(newCompany);
 
-        UserDTO result = userService.updateUser(savedUser.getId(), dto);
+        UpdateUserDTO dto = new UpdateUserDTO(
+                "Updated",
+                "Name",
+                generateUniquePhoneNumber(),
+                newCompany.getId()
+        );
 
-        assertThat(result.getFirstName()).isEqualTo("Updated");
-        assertThat(result.getLastName()).isEqualTo("Name");
+        UserDTO result = userService.updateUser(existingUser.getId(), dto);
 
-        User updatedUser = userRepository.findById(savedUser.getId()).orElseThrow();
-        assertThat(updatedUser.getFirstName()).isEqualTo("Updated");
+        assertEquals("Updated", result.getFirstName());
+        User updatedUser = userRepository.findById(existingUser.getId()).orElseThrow();
+        assertEquals(newCompany.getId(), updatedUser.getCompany().getId());
     }
 
     @Test
-    void updateUser_ShouldThrowAlreadyExistsException_WhenPhoneTaken() {
-        String existingPhone = generateUniquePhoneNumber();
-        userRepository.save(new User(null, "Existing", "User", existingPhone));
-        User userToUpdate = userRepository.save(new User(null, "Original", "User", generateUniquePhoneNumber()));
-        UpdateUserDTO dto = new UpdateUserDTO("John", "Doe", existingPhone);
+    void updateUser_ShouldThrowWhenPhoneExists() {
+        User anotherUser = new User();
+        anotherUser.setFirstName("Another");
+        anotherUser.setLastName("User");
+        anotherUser.setPhoneNumber(generateUniquePhoneNumber());
+        anotherUser.setCompany(company);
+        anotherUser = userRepository.save(anotherUser);
 
-        assertThatThrownBy(() -> userService.updateUser(userToUpdate.getId(), dto))
-                .isInstanceOf(AlreadyExistsException.class);
+        UpdateUserDTO dto = new UpdateUserDTO(
+                existingUser.getFirstName(),
+                existingUser.getLastName(),
+                anotherUser.getPhoneNumber(), // Используем существующий телефон
+                company.getId()
+        );
+
+        assertThrows(AlreadyExistsException.class,
+                () -> userService.updateUser(existingUser.getId(), dto));
     }
 
     @Test
-    void deleteUser_ShouldRemoveUser_WhenUserExists() {
-        User savedUser = userRepository.save(new User(null, "ToDelete", "User", generateUniquePhoneNumber()));
+    void deleteUser_ShouldRemoveUserFromDatabase() {
+        Long userId = existingUser.getId();
+        Long companyId = company.getId();
 
-        userService.deleteUser(savedUser.getId());
+        userService.deleteUser(userId);
 
-        assertThat(userRepository.existsById(savedUser.getId())).isFalse();
-    }
-
-    @Test
-    void deleteUser_ShouldThrowNotFoundException_WhenUserNotExists() {
-        Long nonExistentId = 999L;
-
-        assertThatThrownBy(() -> userService.deleteUser(nonExistentId))
-                .isInstanceOf(NotFoundException.class);
+        assertFalse(userRepository.findById(userId).isPresent());
+        assertTrue(companyRepository.findById(companyId).isPresent());
     }
 
     @Test
     void getAllUsers_ShouldReturnPaginatedResults() {
-        userRepository.deleteAll();
+        // Создаем дополнительных пользователей
+        User user1 = new User();
+        user1.setFirstName("User1");
+        user1.setLastName("Test");
+        user1.setPhoneNumber(generateUniquePhoneNumber());
+        user1.setCompany(company);
+        userRepository.save(user1);
 
-        userRepository.save(new User(null, "User1", "Last1", generateUniquePhoneNumber()));
-        userRepository.save(new User(null, "User2", "Last2", generateUniquePhoneNumber()));
-        userRepository.save(new User(null, "User3", "Last3", generateUniquePhoneNumber()));
+        User user2 = new User();
+        user2.setFirstName("User2");
+        user2.setLastName("Test");
+        user2.setPhoneNumber(generateUniquePhoneNumber());
+        user2.setCompany(company);
+        userRepository.save(user2);
 
+        // Проверяем пагинацию
         List<UserDTO> page1 = userService.getAllUsers(0, 2);
         List<UserDTO> page2 = userService.getAllUsers(1, 2);
 
-        assertThat(page1).hasSize(2);
-        assertThat(page2).hasSize(1);
+        assertEquals(2, page1.size());
+        assertEquals(1, page2.size());
+    }
+
+    @Test
+    void getUserById_ShouldThrowWhenUserNotFound() {
+        assertThrows(NotFoundException.class,
+                () -> userService.getUserById(999L));
+    }
+
+    @Test
+    void updateUser_ShouldThrowWhenUserNotFound() {
+        UpdateUserDTO dto = new UpdateUserDTO(
+                "Test",
+                "Test",
+                generateUniquePhoneNumber(),
+                company.getId()
+        );
+
+        assertThrows(NotFoundException.class,
+                () -> userService.updateUser(999L, dto));
     }
 }

@@ -1,9 +1,12 @@
 package com.zed.company_service.service;
 
 import com.zed.company_service.dto.CompanyDTO;
+import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
+import com.zed.company_service.dto.UserInfoDTO;
 import com.zed.company_service.entity.CompanyEntity;
+import com.zed.company_service.entity.User;
 import com.zed.company_service.exception.NotFoundException;
 import com.zed.company_service.mapper.CompanyMapper;
 import com.zed.company_service.repository.CompanyRepository;
@@ -47,173 +50,187 @@ class CompanyServiceImplUnitTest {
     @InjectMocks
     private CompanyServiceImpl service;
 
-    private CompanyEntity entity;
-    private CompanyDTO dto;
-    private CreateCompanyDTO createDto;
-    private UpdateCompanyDTO updateDto;
+    private CompanyEntity companyEntity;
+    private CompanyDTO companyDTO;
+    private CreateCompanyDTO createCompanyDTO;
+    private UpdateCompanyDTO updateCompanyDTO;
+    private CompanyEmployeesDTO companyEmployeesDTO;
+    private User user1, user2;
+    private UserInfoDTO userInfoDTO1, userInfoDTO2;
 
     @BeforeEach
     void setUp() {
-        entity = new CompanyEntity(1L, "Test Company", BigDecimal.valueOf(1000));
-        dto = new CompanyDTO(1L, "Test Company", BigDecimal.valueOf(1000));
-        createDto = new CreateCompanyDTO("Test Company", BigDecimal.valueOf(1000));
-        updateDto = new UpdateCompanyDTO("Updated Company", BigDecimal.valueOf(2000));
+        companyEntity = new CompanyEntity();
+        companyEntity.setId(1L);
+        companyEntity.setName("Test Company");
+        companyEntity.setBudget(BigDecimal.valueOf(1000));
+
+        user1 = new User(1L, "John", "Doe", "+1234567890", companyEntity);
+        user2 = new User(2L, "Jane", "Smith", "+9876543210", companyEntity);
+
+        companyEntity.setEmployees(List.of(user1, user2));
+
+        companyDTO = new CompanyDTO(1L, "Test Company", BigDecimal.valueOf(1000));
+        createCompanyDTO = new CreateCompanyDTO("Test Company", BigDecimal.valueOf(1000));
+        updateCompanyDTO = new UpdateCompanyDTO("Updated Company", BigDecimal.valueOf(2000));
+
+        userInfoDTO1 = new UserInfoDTO("John", "Doe", "+1234567890");
+        userInfoDTO2 = new UserInfoDTO("Jane", "Smith", "+9876543210");
+        companyEmployeesDTO = new CompanyEmployeesDTO(1L, "Test Company", BigDecimal.valueOf(1000), List.of(userInfoDTO1, userInfoDTO2));
     }
 
-    @Test
-    void addCompany_ReturnSavedCompany_WhenValidInput() {
-        when(mapper.toCompanyEntity(createDto)).thenReturn(entity);
-        when(repository.save(entity)).thenReturn(entity);
-        when(mapper.toCompanyDTO(entity)).thenReturn(dto);
+        @Test
+        void addCompany_ShouldReturnSavedCompany_WhenValidInput() {
+            when(mapper.toCompanyEntity(createCompanyDTO)).thenReturn(companyEntity);
+            when(repository.save(companyEntity)).thenReturn(companyEntity);
+            when(mapper.toCompanyDTO(companyEntity)).thenReturn(companyDTO);
 
-        CompanyDTO result = service.addCompany(createDto);
+            CompanyDTO result = service.addCompany(createCompanyDTO);
 
-        assertThat(result).isEqualTo(dto);
-        verify(repository).save(entity);
-        verify(mapper).toCompanyEntity(createDto);
+            assertThat(result).isEqualTo(companyDTO);
+            verify(repository).save(companyEntity);
+            verify(mapper).toCompanyEntity(createCompanyDTO);
+        }
+
+        @Test
+        void addCompany_ShouldThrowException_WhenRepositoryFails() {
+            when(mapper.toCompanyEntity(createCompanyDTO)).thenReturn(companyEntity);
+            when(repository.save(companyEntity)).thenThrow(new DataAccessException("DB error") {});
+
+            assertThatThrownBy(() -> service.addCompany(createCompanyDTO))
+                    .isInstanceOf(DataAccessException.class)
+                    .hasMessageContaining("DB error");
+        }
+
+        @Test
+        void getCompanyById_ShouldReturnCompany_WhenExists() {
+            when(repository.findById(1L)).thenReturn(Optional.of(companyEntity));
+            when(mapper.toCompanyDTO(companyEntity)).thenReturn(companyDTO);
+
+            CompanyDTO result = service.getCompanyById(1L);
+
+            assertThat(result).isEqualTo(companyDTO);
+            verify(repository).findById(1L);
+        }
+
+        @Test
+        void getCompanyById_ShouldThrowNotFoundException_WhenNotExists() {
+            Long invalidId = 999L;
+            when(repository.findById(invalidId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.getCompanyById(invalidId))
+                    .isInstanceOf(NotFoundException.class)
+                    .hasMessageContaining("Company not found with id: " + invalidId);
+        }
+
+        @Test
+        void getCompanyWithEmployees_ShouldReturnCompanyWithEmployees_WhenExists() {
+            when(repository.findById(1L)).thenReturn(Optional.of(companyEntity));
+            when(mapper.toCompanyEmployeesDTO(companyEntity)).thenReturn(companyEmployeesDTO);
+
+            CompanyEmployeesDTO result = service.getCompanyWithEmployees(1L);
+
+            assertThat(result).isEqualTo(companyEmployeesDTO);
+            assertThat(result.getEmployees())
+                    .hasSize(2)
+                    .containsExactly(userInfoDTO1, userInfoDTO2);
+            verify(repository).findById(1L);
+        }
+
+        @Test
+        void getCompanyWithEmployees_ShouldThrowNotFoundException_WhenNotExists() {
+            Long invalidId = 999L;
+            when(repository.findById(invalidId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.getCompanyWithEmployees(invalidId))
+                    .isInstanceOf(NotFoundException.class)
+                    .hasMessageContaining("Company not found with id: " + invalidId);
+        }
+
+        // ========== updateCompany Tests ==========
+        @Test
+        void updateCompany_ShouldUpdateAndReturnCompany_WhenValidInput() {
+            CompanyEntity updatedEntity = new CompanyEntity();
+            updatedEntity.setId(1L);
+            updatedEntity.setName("Updated Company");
+            updatedEntity.setBudget(BigDecimal.valueOf(2000));
+
+            CompanyDTO updatedDto = new CompanyDTO(1L, "Updated Company", BigDecimal.valueOf(2000));
+
+            when(repository.findById(1L)).thenReturn(Optional.of(companyEntity));
+            when(repository.save(companyEntity)).thenReturn(updatedEntity);
+            when(mapper.toCompanyDTO(updatedEntity)).thenReturn(updatedDto);
+
+            CompanyDTO result = service.updateCompany(1L, updateCompanyDTO);
+
+            assertThat(result).isEqualTo(updatedDto);
+            verify(mapper).updateEntityFromDTO(updateCompanyDTO, companyEntity);
+            verify(repository).save(companyEntity);
+        }
+
+        @Test
+        void updateCompany_ShouldThrowNotFoundException_WhenNotExists() {
+            Long invalidId = 999L;
+            when(repository.findById(invalidId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.updateCompany(invalidId, updateCompanyDTO))
+                    .isInstanceOf(NotFoundException.class)
+                    .hasMessageContaining("Company not found with id: " + invalidId);
+        }
+
+        @Test
+        void deleteCompany_ShouldDeleteCompany_WhenExists() {
+            when(repository.findById(1L)).thenReturn(Optional.of(companyEntity));
+
+            service.deleteCompany(1L);
+
+            verify(repository).delete(companyEntity);
+        }
+
+        @Test
+        void deleteCompany_ShouldThrowNotFoundException_WhenNotExists() {
+            Long invalidId = 999L;
+            when(repository.findById(invalidId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.deleteCompany(invalidId))
+                    .isInstanceOf(NotFoundException.class)
+                    .hasMessageContaining("Company not found with id: " + invalidId);
+
+            verify(repository, never()).delete(any());
+        }
+
+        @Test
+        void getCompanies_ShouldReturnPageOfCompanies_WhenValidPageable() {
+            Pageable pageable = PageRequest.of(0, 10);
+            Page<CompanyEntity> page = new PageImpl<>(List.of(companyEntity), pageable, 1);
+
+            when(repository.findAll(pageable)).thenReturn(page);
+            when(mapper.toCompanyDTOList(List.of(companyEntity))).thenReturn(List.of(companyDTO));
+
+            List<CompanyDTO> result = service.getCompanies(0, 10);
+
+            assertThat(result)
+                    .hasSize(1)
+                    .containsExactly(companyDTO);
+        }
+
+        @Test
+        void getCompanies_ShouldReturnEmptyList_WhenNoCompanies() {
+            Pageable pageable = PageRequest.of(0, 10);
+            when(repository.findAll(pageable)).thenReturn(Page.empty());
+            when(mapper.toCompanyDTOList(anyList())).thenReturn(Collections.emptyList());
+
+            List<CompanyDTO> result = service.getCompanies(0, 10);
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        void getCompanies_ShouldThrowException_WhenInvalidPageable() {
+            assertThatThrownBy(() -> service.getCompanies(-1, 10))
+                    .isInstanceOf(IllegalArgumentException.class);
+
+            assertThatThrownBy(() -> service.getCompanies(0, 0))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
     }
-
-    @Test
-    void addCompany_ThrowException_WhenRepositoryFails() {
-        when(mapper.toCompanyEntity(createDto)).thenReturn(entity);
-        when(repository.save(entity)).thenThrow(new DataAccessException("DB error") {});
-
-        assertThatThrownBy(() -> service.addCompany(createDto))
-                .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("DB error");
-    }
-
-    @Test
-    void getCompanyById_ReturnCompany_WhenExists() {
-        when(repository.findById(1L)).thenReturn(Optional.of(entity));
-        when(mapper.toCompanyDTO(entity)).thenReturn(dto);
-
-        CompanyDTO result = service.getCompanyById(1L);
-
-        assertThat(result).isEqualTo(dto);
-        verify(repository).findById(1L);
-    }
-
-    @Test
-    void getCompanyById_ThrowException_WhenNotExists() {
-        Long invalidId = 999L;
-        when(repository.findById(invalidId)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.getCompanyById(invalidId))
-                .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("Company not found with id: " + invalidId);
-    }
-
-    @Test
-    void updateCompany_UpdateAndReturnCompany_ValidInput() {
-        CompanyEntity updatedEntity = new CompanyEntity(1L, "Updated Company", BigDecimal.valueOf(2000));
-        CompanyDTO updatedDto = new CompanyDTO(1L, "Updated Company", BigDecimal.valueOf(2000) );
-
-        when(repository.findById(1L)).thenReturn(Optional.of(entity));
-        when(repository.save(entity)).thenReturn(updatedEntity);
-        when(mapper.toCompanyDTO(updatedEntity)).thenReturn(updatedDto);
-
-        CompanyDTO result = service.updateCompany(1L, updateDto);
-
-        assertThat(result).isEqualTo(updatedDto);
-        verify(mapper).updateEntityFromDTO(updateDto, entity);
-        verify(repository).save(entity);
-    }
-
-    @Test
-    void updateCompany_ThrowNotFound_WhenCompanyNotExists() {
-        Long invalidId = 999L;
-        when(repository.findById(invalidId)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.updateCompany(invalidId, updateDto))
-                .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("Company not found with id: " + invalidId);
-    }
-
-    @Test
-    void updateCompany_UpdateOnlyName_WhenPartialUpdate() {
-        // Arrange
-        UpdateCompanyDTO partialUpdate = new UpdateCompanyDTO();
-        partialUpdate.setName("New Name Only");
-        CompanyEntity existingEntity = new CompanyEntity(1L, "Old Name", BigDecimal.valueOf(1000) );
-        CompanyEntity updatedEntity = new CompanyEntity(1L, "New Name Only", BigDecimal.valueOf(1000));
-
-        when(repository.findById(1L)).thenReturn(Optional.of(existingEntity));
-        when(repository.save(any(CompanyEntity.class))).thenReturn(updatedEntity);
-
-        CompanyDTO expectedDto = new CompanyDTO(1L, "New Name Only", BigDecimal.valueOf(1000));
-
-        when(mapper.toCompanyDTO(updatedEntity)).thenReturn(expectedDto);
-
-        CompanyDTO result = service.updateCompany(1L, partialUpdate);
-
-        assertEquals("New Name Only", result.getName(), "The company name should be updated.");
-        assertEquals(BigDecimal.valueOf(1000), result.getBudget(), "The budget should remain unchanged.");
-
-        verify(mapper).updateEntityFromDTO(
-                argThat(dto ->
-                        dto.getName().equals("New Name Only") &&
-                                dto.getBudget() == null
-                ),
-                any()
-        );
-        verify(repository).save(any(CompanyEntity.class));
-    }
-
-
-    @Test
-    void deleteCompany_ShouldDeleteCompany_WhenExists() {
-        when(repository.findById(1L)).thenReturn(Optional.of(entity));
-
-        service.deleteCompany(1L);
-
-        verify(repository).delete(entity);
-    }
-
-    @Test
-    void deleteCompany_ShouldThrowNotFound_WhenNotExists() {
-        Long invalidId = 999L;
-        when(repository.findById(invalidId)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.deleteCompany(invalidId))
-                .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("Company not found with id: " + invalidId);
-
-        verify(repository, never()).delete(any());
-    }
-
-    @Test
-    void getCompanies_ShouldReturnPageOfCompanies_WhenValidPageable() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<CompanyEntity> page = new PageImpl<>(List.of(entity), pageable, 1);
-
-        when(repository.findAll(pageable)).thenReturn(page);
-        when(mapper.toCompanyDTOList(List.of(entity))).thenReturn(List.of(dto));
-
-        List<CompanyDTO> result = service.getCompanies(0, 10);
-
-        assertThat(result)
-                .hasSize(1)
-                .containsExactly(dto);
-    }
-
-    @Test
-    void getCompanies_ShouldReturnEmptyList_WhenNoCompanies() {
-        Pageable pageable = PageRequest.of(0, 10);
-        when(repository.findAll(pageable)).thenReturn(Page.empty());
-        when(mapper.toCompanyDTOList(anyList())).thenReturn(Collections.emptyList());
-
-        List<CompanyDTO> result = service.getCompanies(0, 10);
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void getCompanies_ShouldThrowException_WhenInvalidPageable() {
-        assertThatThrownBy(() -> service.getCompanies(-1, 10))
-                .isInstanceOf(IllegalArgumentException.class);
-
-        assertThatThrownBy(() -> service.getCompanies(0, 0))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-}

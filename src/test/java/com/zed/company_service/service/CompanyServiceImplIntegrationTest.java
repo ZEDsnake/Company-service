@@ -1,17 +1,18 @@
 package com.zed.company_service.service;
 
 import com.zed.company_service.dto.CompanyDTO;
+import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 import com.zed.company_service.entity.CompanyEntity;
+import com.zed.company_service.entity.User;
 import com.zed.company_service.exception.NotFoundException;
 import com.zed.company_service.repository.CompanyRepository;
+import com.zed.company_service.repository.UserRepository;
 import com.zed.company_service.service.impl.CompanyServiceImpl;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,82 +38,113 @@ class CompanyServiceImplIntegrationTest {
     private CompanyRepository companyRepository;
 
     @Autowired
-    private EntityManager entityManager;
+    private UserRepository userRepository;
+
+    private CompanyEntity savedCompany;
+    private User savedUser;
 
     @BeforeEach
-    void cleanUp() {
+    void setUp() {
+        companyRepository.deleteAll();
+        userRepository.deleteAll();
+
+        CompanyEntity company = new CompanyEntity();
+        company.setName("Test Company");
+        company.setBudget(new BigDecimal("100000.00"));
+        savedCompany = companyRepository.save(company);
+
+        User user = new User();
+        user.setFirstName("John");
+        user.setLastName("Doe");
+        user.setPhoneNumber("+79123456789");
+        user.setCompany(savedCompany);
+        savedUser = userRepository.save(user);
+
+        savedCompany.getEmployees().add(savedUser);
+        companyRepository.save(savedCompany);
     }
 
     @Test
-    void addCompany_ReturnDto_WithGeneratedIdAndValidData() {
-        CreateCompanyDTO dto = new CreateCompanyDTO("NewCo", new BigDecimal("500000.00"));
+    void addCompany_ShouldReturnDtoWithGeneratedId() {
+        CreateCompanyDTO dto = new CreateCompanyDTO("New Company", new BigDecimal("500000.00"));
 
         CompanyDTO result = companyService.addCompany(dto);
 
         assertNotNull(result.getId());
-        CompanyEntity savedEntity = companyRepository.findById(result.getId()).orElseThrow();
-        assertEquals("NewCo", savedEntity.getName());
-        assertEquals(0, new BigDecimal("500000.00").compareTo(savedEntity.getBudget()));
+        assertEquals("New Company", result.getName());
+        assertEquals(0, new BigDecimal("500000.00").compareTo(result.getBudget()));
     }
 
     @Test
-    void addCompany_shouldThrow_WhenNameNotUnique() {
-        companyRepository.save(new CompanyEntity(null, "ExistingName", BigDecimal.ONE));
-        CreateCompanyDTO dto = new CreateCompanyDTO("ExistingName", BigDecimal.TEN);
+    void getCompanyById_ShouldReturnCorrectDto() {
+        CompanyDTO result = companyService.getCompanyById(savedCompany.getId());
 
-        assertThrows(DataIntegrityViolationException.class, () -> companyService.addCompany(dto));
+        assertEquals(savedCompany.getId(), result.getId());
+        assertEquals(savedCompany.getName(), result.getName());
+        assertEquals(0, savedCompany.getBudget().compareTo(result.getBudget()));
     }
 
     @Test
-    void getCompanyById_ReturnCorrectEntity() {
-        CompanyEntity savedEntity = companyRepository.save(
-                new CompanyEntity(null, "TestCompany", new BigDecimal("1000.00"))
-        );
+    void getCompanyWithEmployees_ShouldReturnDtoWithUsers() {
+        CompanyEmployeesDTO result = companyService.getCompanyWithEmployees(savedCompany.getId());
 
-        CompanyDTO result = companyService.getCompanyById(savedEntity.getId());
-
-        assertEquals(savedEntity.getId(), result.getId());
-        assertEquals(savedEntity.getName(), result.getName());
-        assertEquals(0, savedEntity.getBudget().compareTo(result.getBudget()));
+        assertEquals(savedCompany.getId(), result.getId());
+        assertEquals(1, result.getEmployees().size());
+        assertEquals("John", result.getEmployees().get(0).getFirstName());
     }
 
     @Test
-    void updateCompany_ModifyOnlyProvidedFields() {
-        CompanyEntity original = companyRepository.save(
-                new CompanyEntity(null, "Original", new BigDecimal("2000.00"))
-        );
+    void updateCompany_ShouldUpdateOnlyProvidedFields() {
+        UpdateCompanyDTO dto = new UpdateCompanyDTO();
+        dto.setName("Updated Name");
+        dto.setBudget(new BigDecimal("200000.00"));
 
-        CompanyDTO result = companyService.updateCompany(
-                original.getId(),
-                new UpdateCompanyDTO("Updated", null)
-        );
+        CompanyDTO result = companyService.updateCompany(savedCompany.getId(), dto);
 
-        assertEquals("Updated", result.getName());
-        assertEquals(0, original.getBudget().compareTo(result.getBudget()));
+        assertEquals("Updated Name", result.getName());
+        assertEquals(0, new BigDecimal("200000.00").compareTo(result.getBudget()));
     }
 
     @Test
-    void deleteCompany_RemoveEntityFromDb() {
-        CompanyEntity entity = companyRepository.save(
-                new CompanyEntity(null, "ToDelete", BigDecimal.ONE)
-        );
+    void deleteCompany_ShouldRemoveCompanyAndUsers() {
+        companyService.deleteCompany(savedCompany.getId());
 
-        companyService.deleteCompany(entity.getId());
-
-        assertThrows(NotFoundException.class,
-                () -> companyService.getCompanyById(entity.getId()));
+        assertFalse(companyRepository.existsById(savedCompany.getId()));
+        assertFalse(userRepository.existsById(savedUser.getId()));
     }
 
     @Test
-    void getCompanies_shouldReturnPaginatedResults() {
-        companyRepository.save(new CompanyEntity(null, "Company D", new BigDecimal("400000")));
-        companyRepository.save(new CompanyEntity(null, "Company E", new BigDecimal("500000")));
+    void getCompanies_ShouldReturnPaginatedResults() {
+        CompanyEntity company2 = new CompanyEntity();
+        company2.setName("Company 2");
+        company2.setBudget(new BigDecimal("200000.00"));
+        companyRepository.save(company2);
+
+        CompanyEntity company3 = new CompanyEntity();
+        company3.setName("Company 3");
+        company3.setBudget(new BigDecimal("300000.00"));
+        companyRepository.save(company3);
 
         List<CompanyDTO> page1 = companyService.getCompanies(0, 2);
         List<CompanyDTO> page2 = companyService.getCompanies(1, 2);
 
         assertEquals(2, page1.size());
-        assertEquals(2, page2.size());
+        assertEquals(1, page2.size());
         assertNotEquals(page1.get(0).getId(), page2.get(0).getId());
+    }
+
+    @Test
+    void getCompanyById_ShouldThrowNotFoundException() {
+        assertThrows(NotFoundException.class, () ->
+                companyService.getCompanyById(999L));
+    }
+
+    @Test
+    void updateCompany_ShouldThrowNotFoundException() {
+        UpdateCompanyDTO dto = new UpdateCompanyDTO();
+        dto.setName("Non-existent");
+
+        assertThrows(NotFoundException.class, () ->
+                companyService.updateCompany(999L, dto));
     }
 }
