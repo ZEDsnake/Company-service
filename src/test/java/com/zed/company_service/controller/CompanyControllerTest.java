@@ -2,7 +2,6 @@ package com.zed.company_service.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zed.company_service.dto.CompanyDTO;
-import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 import com.zed.company_service.dto.UserInfoDTO;

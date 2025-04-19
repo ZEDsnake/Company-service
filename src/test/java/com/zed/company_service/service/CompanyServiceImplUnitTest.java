@@ -1,7 +1,6 @@
 package com.zed.company_service.service;
 
 import com.zed.company_service.dto.CompanyDTO;
-import com.zed.company_service.dto.CompanyEmployeesDTO;
 import com.zed.company_service.dto.CreateCompanyDTO;
 import com.zed.company_service.dto.UpdateCompanyDTO;
 import com.zed.company_service.dto.UserInfoDTO;
@@ -33,7 +32,6 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;

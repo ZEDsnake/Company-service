@@ -1,18 +1,20 @@
 package com.zed.company_service.service.impl;
 
 
+import com.zed.company_service.dto.CompanyInfoDTO;
 import com.zed.company_service.dto.CreateUserDTO;
 import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
-import com.zed.company_service.entity.CompanyEntity;
+import com.zed.company_service.dto.UserInfoDTO;
 import com.zed.company_service.entity.User;
 import com.zed.company_service.exception.NotFoundException;
 import com.zed.company_service.exception.AlreadyExistsException;
+import com.zed.company_service.feign.CompanyClient;
 import com.zed.company_service.mapper.UserMapper;
-import com.zed.company_service.repository.CompanyRepository;
 import com.zed.company_service.repository.UserRepository;
 import com.zed.company_service.service.UserService;
+import feign.FeignException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,17 +32,29 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
-    private final CompanyRepository companyRepository;
+    private final CompanyClient companyClient;
+
+    @Override
+    public List<UserInfoDTO> getUserInfoByCompanyId(Long companyId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        List<User> users = userRepository.findByCompanyId(companyId, pageable);
+        return userMapper.toUserInfoDtoList(users);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUsersByCompanyId(Long companyId) {
+        userRepository.deleteByCompanyId(companyId);
+    }
 
     @Override
     @Transactional
     public UserDTO createUser(CreateUserDTO createUserDTO) {
         checkPhoneAlreadyExists(createUserDTO.getPhoneNumber());
-
-        CompanyEntity company = findCompanyById(createUserDTO.getCompanyId());
+        checkIfCompanyExists(createUserDTO.getCompanyId());
 
         User user = userMapper.toUserEntity(createUserDTO);
-        user.setCompany(company);
+        user.setCompanyId(createUserDTO.getCompanyId());
 
         User savedEntity = userRepository.save(user);
         UserDTO result = userMapper.toUserDTO(savedEntity);
@@ -50,20 +64,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserDTO getUserById(Long id) {
-        User userEntity = findUserById(id);
-        UserDTO result = userMapper.toUserDTO(userEntity);
-        log.info("UserService: getUserById method result: {}", result);
-        return result;
-    }
-
-    @Override
-    @Transactional
-    public EmployeeDTO getUserWithCompany(Long id) {
-        User user = findUserById(id);
-        EmployeeDTO result = userMapper.toEmployeeDTO(user); // company внутри уже маппится как CompanyInfoDTO
-        log.info("UserService: getUserWithCompany method result: {}", result);
-        return result;
+    public EmployeeDTO getUserWithCompany(Long userId) {
+        User user = findUserById(userId);
+        EmployeeDTO dto = userMapper.toEmployeeDTO(user);
+        dto.setCompany(fetchCompany(user.getCompanyId()));
+        log.info("Returning employee with company info: {}", dto);
+        return dto;
     }
 
     @Override
@@ -72,15 +78,17 @@ public class UserServiceImpl implements UserService {
         User existingUser = findUserById(id);
         validatePhoneNumberChange(existingUser, updateUserDTO);
 
-        userMapper.updateEntityFromDTO(updateUserDTO, existingUser);
+        checkIfCompanyExists(updateUserDTO.getCompanyId());
 
-        updateCompanyIfChanged(existingUser, updateUserDTO.getCompanyId());
+        userMapper.updateEntityFromDTO(updateUserDTO, existingUser);
+        existingUser.setCompanyId(updateUserDTO.getCompanyId());
 
         User updatedEntity = userRepository.save(existingUser);
         UserDTO result = userMapper.toUserDTO(updatedEntity);
         log.info("User updated successfully: {}", result);
         return result;
     }
+
 
     @Override
     @Transactional
@@ -92,22 +100,19 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public List<UserDTO> getAllUsers(int page, int size) {
+    public List<EmployeeDTO> getAllUsers(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<User> userPage = userRepository.findAll(pageable);
-        List<UserDTO> userDTOList = userMapper.toUserDTOList(userPage.getContent());
-        log.info("Retrieved {} users for page {} with size {}", userDTOList.size(), page, size);
-        return userDTOList;
+
+        List<EmployeeDTO> employeeDTOList = mapUsersToEmployeeDTOList(userPage.getContent());
+
+        log.info("Retrieved {} users for page {} with size {}", employeeDTOList.size(), page, size);
+        return employeeDTOList;
     }
 
     private User findUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(()->new NotFoundException("User not found with id: " + id));
-    }
-
-    private CompanyEntity findCompanyById(Long id) {
-        return companyRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Company not found with id: " + id));
     }
 
     private void checkPhoneAlreadyExists(String phoneNumber) {
@@ -127,11 +132,28 @@ public class UserServiceImpl implements UserService {
         return !existingUser.getPhoneNumber().equals(updateUserDTO.getPhoneNumber());
     }
 
-    private void updateCompanyIfChanged(User user, Long newCompanyId) {
-        if (newCompanyId != null &&
-                (user.getCompany() == null || !newCompanyId.equals(user.getCompany().getId()))) {
-            CompanyEntity newCompany = findCompanyById(newCompanyId);
-            user.setCompany(newCompany);
+    private void checkIfCompanyExists(Long companyId) {
+        try {
+            companyClient.getCompanyById(companyId);
+        } catch (FeignException.NotFound e) {
+            throw new NotFoundException("Company not found with ID: " + companyId);
         }
     }
+
+    private CompanyInfoDTO fetchCompany(Long companyId) {
+        return companyId != null ? companyClient.getCompanyById(companyId) : null;
+    }
+
+    private EmployeeDTO mapUserToEmployeeDTOWithCompany(User user) {
+        EmployeeDTO dto = userMapper.toEmployeeDTO(user);
+        dto.setCompany(fetchCompany(user.getCompanyId()));
+        return dto;
+    }
+
+    private List<EmployeeDTO> mapUsersToEmployeeDTOList(List<User> users) {
+        return users.stream()
+                .map(this::mapUserToEmployeeDTOWithCompany)
+                .toList();
+    }
+
 }

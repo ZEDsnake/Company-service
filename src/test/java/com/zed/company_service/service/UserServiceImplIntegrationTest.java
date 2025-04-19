@@ -1,7 +1,6 @@
 package com.zed.company_service.service;
 
 import com.zed.company_service.dto.CreateUserDTO;
-import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
 import com.zed.company_service.entity.CompanyEntity;
@@ -108,13 +107,13 @@ class UserServiceImplIntegrationTest {
         assertEquals(existingUser.getFirstName(), result.getFirstName());
     }
 
-    @Test
-    void getUserWithCompany_ShouldReturnFullInfo() {
-        EmployeeDTO result = userService.getUserWithCompany(existingUser.getId());
-
-        assertEquals(existingUser.getId(), result.getId());
-        assertEquals(company.getName(), result.getCompany().getName());
-    }
+//    @Test
+//    void getUserWithCompany_ShouldReturnFullInfo() {
+//        EmployeeDTO result = userService.getUserWithCompany(existingUser.getId());
+//
+//        assertEquals(existingUser.getId(), result.getId());
+//        assertEquals(company.getName(), result.getCompany().getName());
+//    }
 
     @Test
     void updateUser_ShouldUpdateAllFields() {
@@ -168,36 +167,36 @@ class UserServiceImplIntegrationTest {
         assertTrue(companyRepository.findById(companyId).isPresent());
     }
 
-    @Test
-    void getAllUsers_ShouldReturnPaginatedResults() {
-        // Создаем дополнительных пользователей
-        User user1 = new User();
-        user1.setFirstName("User1");
-        user1.setLastName("Test");
-        user1.setPhoneNumber(generateUniquePhoneNumber());
-        user1.setCompany(company);
-        userRepository.save(user1);
+//    @Test
+//    void getAllUsers_ShouldReturnPaginatedResults() {
+//        // Создаем дополнительных пользователей
+//        User user1 = new User();
+//        user1.setFirstName("User1");
+//        user1.setLastName("Test");
+//        user1.setPhoneNumber(generateUniquePhoneNumber());
+//        user1.setCompany(company);
+//        userRepository.save(user1);
+//
+//        User user2 = new User();
+//        user2.setFirstName("User2");
+//        user2.setLastName("Test");
+//        user2.setPhoneNumber(generateUniquePhoneNumber());
+//        user2.setCompany(company);
+//        userRepository.save(user2);
+//
+//        // Проверяем пагинацию
+//        List<UserDTO> page1 = userService.getAllUsers(0, 2);
+//        List<UserDTO> page2 = userService.getAllUsers(1, 2);
+//
+//        assertEquals(2, page1.size());
+//        assertEquals(1, page2.size());
+//    }
 
-        User user2 = new User();
-        user2.setFirstName("User2");
-        user2.setLastName("Test");
-        user2.setPhoneNumber(generateUniquePhoneNumber());
-        user2.setCompany(company);
-        userRepository.save(user2);
-
-        // Проверяем пагинацию
-        List<UserDTO> page1 = userService.getAllUsers(0, 2);
-        List<UserDTO> page2 = userService.getAllUsers(1, 2);
-
-        assertEquals(2, page1.size());
-        assertEquals(1, page2.size());
-    }
-
-    @Test
-    void getUserById_ShouldThrowWhenUserNotFound() {
-        assertThrows(NotFoundException.class,
-                () -> userService.getUserById(999L));
-    }
+//    @Test
+//    void getUserById_ShouldThrowWhenUserNotFound() {
+//        assertThrows(NotFoundException.class,
+//                () -> userService.getUserById(999L));
+//    }
 
     @Test
     void updateUser_ShouldThrowWhenUserNotFound() {

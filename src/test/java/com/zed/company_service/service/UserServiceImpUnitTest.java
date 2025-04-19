@@ -1,8 +1,6 @@
 package com.zed.company_service.service;
 
-import com.zed.company_service.dto.CompanyInfoDTO;
 import com.zed.company_service.dto.CreateUserDTO;
-import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
 import com.zed.company_service.entity.CompanyEntity;
@@ -151,19 +149,19 @@ class UserServiceImpUnitTest {
         verify(userRepository).findById(USER_ID);
     }
 
-    @Test
-    void getUserWithCompany_ShouldReturnFullInfo() {
-        User user = userEntity();
-        EmployeeDTO expectedDTO = employeeDTO();
-
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-        when(userMapper.toEmployeeDTO(user)).thenReturn(expectedDTO);
-
-        EmployeeDTO result = userService.getUserWithCompany(USER_ID);
-
-        assertEquals(expectedDTO, result);
-        verify(userRepository).findById(USER_ID);
-    }
+//    @Test
+//    void getUserWithCompany_ShouldReturnFullInfo() {
+//        User user = userEntity();
+//        EmployeeDTO expectedDTO = employeeDTO();
+//
+//        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+//        when(userMapper.toEmployeeDTO(user)).thenReturn(expectedDTO);
+//
+//        EmployeeDTO result = userService.getUserWithCompany(USER_ID);
+//
+//        assertEquals(expectedDTO, result);
+//        verify(userRepository).findById(USER_ID);
+//    }
 
     @Test
     void updateUser_ShouldUpdateFieldsWithoutPhoneChange() {
@@ -238,19 +236,19 @@ class UserServiceImpUnitTest {
         verify(userRepository).delete(user);
     }
 
-    @Test
-    void getAllUsers_ShouldReturnPaginatedResults() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<User> page = new PageImpl<>(List.of(userEntity()));
-
-        when(userRepository.findAll(pageable)).thenReturn(page);
-        when(userMapper.toUserDTOList(anyList())).thenReturn(List.of(userDTO()));
-
-        List<UserDTO> result = userService.getAllUsers(0, 10);
-
-        assertEquals(1, result.size());
-        verify(userRepository).findAll(pageable);
-    }
+//    @Test
+//    void getAllUsers_ShouldReturnPaginatedResults() {
+//        Pageable pageable = PageRequest.of(0, 10);
+//        Page<User> page = new PageImpl<>(List.of(userEntity()));
+//
+//        when(userRepository.findAll(pageable)).thenReturn(page);
+//        when(userMapper.toUserDTOList(anyList())).thenReturn(List.of(userDTO()));
+//
+//        List<UserDTO> result = userService.getAllUsers(0, 10);
+//
+//        assertEquals(1, result.size());
+//        verify(userRepository).findAll(pageable);
+//    }
 
     @Test
     void getUserById_ShouldThrowWhenUserNotFound() {

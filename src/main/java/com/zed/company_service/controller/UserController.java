@@ -4,6 +4,7 @@ import com.zed.company_service.dto.CreateUserDTO;
 import com.zed.company_service.dto.EmployeeDTO;
 import com.zed.company_service.dto.UpdateUserDTO;
 import com.zed.company_service.dto.UserDTO;
+import com.zed.company_service.dto.UserInfoDTO;
 import com.zed.company_service.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -33,18 +34,27 @@ public class UserController {
 
     private final UserService userService;
 
+    @GetMapping("/by-company/{companyId}")
+    public List<UserInfoDTO> getUserInfoByCompanyId(
+            @PathVariable Long companyId,
+            @RequestParam int page,
+            @RequestParam int size) {
+        return userService.getUserInfoByCompanyId(companyId, page, size);
+    }
+
+    @DeleteMapping("/by-company/{companyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteUsersByCompanyId(@PathVariable Long companyId) {
+        log.info("DELETE request received: \"/users/by-company/{}\"", companyId);
+        userService.deleteUsersByCompanyId(companyId);
+    }
+
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserDTO createUser(@Valid @RequestBody CreateUserDTO createUserDTO) {
         log.info("POST request received: \"/users\" with body {}", createUserDTO);
-        return  userService.createUser(createUserDTO);
-    }
-
-    @GetMapping("/{id}")
-    @ResponseStatus(HttpStatus.OK)
-    public UserDTO getUserByID (@PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1")Long id) {
-        log.info("GET request received: \"/users/{}\"",id);
-        return userService.getUserById(id);
+        return userService.createUser(createUserDTO);
     }
 
     @GetMapping("/{id}/info")
@@ -71,10 +81,11 @@ public class UserController {
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<UserDTO> getAllUsers(
+    public List<EmployeeDTO> getAllUsers(
             @RequestParam(defaultValue = "0") @Min(value = 0, message = "Page must be greater than or equal to 0") int page,
             @RequestParam(defaultValue = "10") @Min(value = 1, message = "Size must be greater than or equal to 1") int size) {
         log.info("GET request received: \"/users\" with pagination: page={}, size={}", page, size);
         return userService.getAllUsers(page, size);
     }
 }
+
