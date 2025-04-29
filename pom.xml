@@ -21,6 +21,7 @@
 		<module>company_serv</module>
 		<module>user_serv</module>
 		<module>eureka_service</module>
+		<module>config_service</module>
 	</modules>
 
 	<properties>
