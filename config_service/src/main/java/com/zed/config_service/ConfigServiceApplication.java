@@ -1,4 +1,4 @@
-package com.zed.configservice;
+package com.zed.config_service;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

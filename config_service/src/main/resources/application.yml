@@ -1,6 +1,15 @@
 spring:
   application:
     name: config-service
+  profiles:
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          search-locations:
+            - classpath:/configs/
+            - file:./configs/
 
 server:
   port: 8888
@@ -8,15 +17,12 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
-      instance:
-        appname: config-service
+      defaultZone: http://eureka-server:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,encrypt,decrypt
-
-encrypt:
-  key: 12345
