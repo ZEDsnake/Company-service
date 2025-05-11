@@ -1,17 +1,5 @@
 spring:
-  application:
-    name: user-service
   cloud:
     config:
       uri: http://config-service:8888
       fail-fast: true
-      retry:
-        initial-interval: 1000
-        max-attempts: 10
-
-  eureka:
-    client:
-      service-url:
-        defaultZone: http://eureka-server:8761/eureka/
-      register-with-eureka: true
-      fetch-registry: true
