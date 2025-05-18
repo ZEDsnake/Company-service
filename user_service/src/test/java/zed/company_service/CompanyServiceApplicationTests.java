@@ -1,4 +1,4 @@
-package com.zed.company_service;
+package zed.company_service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

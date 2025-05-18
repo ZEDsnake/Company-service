@@ -17,8 +17,6 @@ import java.util.List;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface UserMapper {
 
-    UserInfoDTO toUserInfoDto(User user);
-
     List<UserInfoDTO> toUserInfoDtoList(List<User> users);
 
     User toUserEntity(CreateUserDTO createUserDTO);

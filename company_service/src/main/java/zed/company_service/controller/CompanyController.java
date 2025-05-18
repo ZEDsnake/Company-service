@@ -77,11 +77,11 @@ public class CompanyController {
     }
 
     @GetMapping("/{id}")
-    public CompanyDTO getCompanyById(@PathVariable Long id) {
+    public CompanyDTO getCompanyById(
+            @PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id) {
         log.info("GET request received: \"/companies/{}\"", id);
         return companyService.getCompanyById(id);
     }
-
 }
 
 

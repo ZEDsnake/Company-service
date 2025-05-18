@@ -2,7 +2,7 @@ FROM eclipse-temurin:17-jdk-jammy AS builder
 ARG MODULE
 WORKDIR /build
 COPY . .
-RUN ./mvnw -pl ${MODULE} -am clean package -DskipTests
+RUN ./mvnw -pl ${MODULE} -am clean package
 
 FROM eclipse-temurin:17-jre-jammy
 ARG MODULE
