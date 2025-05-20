@@ -1,18 +1,26 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-    driver-class-name: org.h2.Driver
-    username: test
-    password:
+    url: jdbc:tc:postgresql:15:///testdb
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
   sql:
     init:
       mode: always
-      schema-locations: classpath:test-schema.sql
-      data-locations:
+  cloud:
+    config:
+      enabled: false
 
-  h2:
-    console:
-      enabled: true
+eureka:
+  client:
+    enabled: false
+
+feign:
+  client:
+    config:
+      company-service:
+        url: http://localhost:8082

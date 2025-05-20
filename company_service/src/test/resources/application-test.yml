@@ -1,13 +1,26 @@
 spring:
   datasource:
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:tc:postgresql:15:///testdb
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-  test:
-    database:
-      replace: none
+        format_sql: true
+  sql:
+    init:
+      mode: always
+  cloud:
+    config:
+      enabled: false
 
+eureka:
+  client:
+    enabled: false
+
+feign:
+  client:
+    config:
+      user-service:
+        url: http://localhost:8081

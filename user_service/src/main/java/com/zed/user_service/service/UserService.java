@@ -24,4 +24,6 @@ public interface UserService {
     void deleteUser(Long id);
 
     List<UserDTO> getAllUsers( int page, int size);
+
+    UserDTO getUserById(Long id);
 }

@@ -87,5 +87,13 @@ public class UserController {
         log.info("GET request received: \"/users\" with pagination: page={}, size={}", page, size);
         return userService.getAllUsers(page, size);
     }
+
+    @GetMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public UserDTO getUserById(
+            @PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id) {
+        log.info("GET request received: \"/users/{}\"", id);
+        return userService.getUserById(id);
+    }
 }
 

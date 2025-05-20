@@ -486,5 +486,46 @@ class UserControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Size must be greater than or equal to 1"));
     }
+
+    @Test
+    void getUserById_ShouldReturnUser_WhenUserExists() throws Exception {
+        UserDTO userDTO = new UserDTO(1L, "John", "Doe", "+79123456789");
+        when(userService.getUserById(1L)).thenReturn(userDTO);
+
+        mockMvc.perform(get("/users/{id}", 1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.firstName").value("John"))
+                .andExpect(jsonPath("$.lastName").value("Doe"))
+                .andExpect(jsonPath("$.phoneNumber").value("+79123456789"));
+
+        verify(userService).getUserById(1L);
+    }
+
+    @Test
+    void getUserById_ShouldReturnNotFound_WhenUserDoesNotExist() throws Exception {
+        when(userService.getUserById(99L))
+                .thenThrow(new NotFoundException("User not found"));
+
+        mockMvc.perform(get("/users/{id}", 99))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("User not found"));
+
+        verify(userService).getUserById(99L);
+    }
+
+    @Test
+    void getUserById_ShouldReturnBadRequest_WhenIdIsZero() throws Exception {
+        mockMvc.perform(get("/users/{id}", 0))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("ID must be a positive number and not less than 1"));
+    }
+
+    @Test
+    void getUserById_ShouldReturnBadRequest_WhenIdIsNegative() throws Exception {
+        mockMvc.perform(get("/users/{id}", -1))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("ID must be a positive number and not less than 1"));
+    }
 }
 

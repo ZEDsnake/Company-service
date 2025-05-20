@@ -107,6 +107,16 @@ public class UserServiceImpl implements UserService {
         return userMapper.toUserDTOList(userPage.getContent());
     }
 
+    @Override
+    @Transactional
+    public UserDTO getUserById(Long id) {
+        User user = findUserById(id);
+        UserDTO dto = userMapper.toUserDTO(user);
+        log.info("Returning user by id: {}", dto);
+        return dto;
+    }
+
+
     private User findUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(()->new NotFoundException("User not found with id: " + id));

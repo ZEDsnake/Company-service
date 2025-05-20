@@ -39,7 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class UserServiceImplTest {
+class UserServiceUnitTest {
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -193,6 +193,41 @@ class UserServiceImplTest {
         userService.deleteUsersByCompanyId(1L);
 
         verify(userRepository).deleteByCompanyId(1L);
+    }
+
+    @Test
+    void getUserById_ShouldReturnUser_WhenUserExists() {
+        UserDTO expectedDto = new UserDTO(1L, "John", "Doe", "+71234567890");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userMapper.toUserDTO(user)).thenReturn(expectedDto);
+
+        UserDTO result = userService.getUserById(1L);
+
+        assertNotNull(result);
+        assertEquals(expectedDto.getId(), result.getId());
+        assertEquals(expectedDto.getFirstName(), result.getFirstName());
+        assertEquals(expectedDto.getLastName(), result.getLastName());
+        assertEquals(expectedDto.getPhoneNumber(), result.getPhoneNumber());
+        verify(userRepository).findById(1L);
+        verify(userMapper).toUserDTO(user);
+    }
+
+    @Test
+    void getUserById_ShouldThrowNotFoundException_WhenUserNotExists() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> userService.getUserById(1L));
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    void getUserById_ShouldCallMapperWithCorrectEntity() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userMapper.toUserDTO(user)).thenReturn(new UserDTO());
+
+        userService.getUserById(1L);
+
+        verify(userMapper).toUserDTO(user);
     }
 }
 
