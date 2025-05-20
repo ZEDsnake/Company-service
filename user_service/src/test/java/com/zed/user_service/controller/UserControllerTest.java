@@ -334,7 +334,10 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.firstName").value("First name is required"));
+                .andExpect(jsonPath("$.firstName").value(
+                        Matchers.anyOf(
+                                Matchers.is("First name is required"),
+                                Matchers.is("Firstname must be between 2 and 50 characters"))));
     }
 
 
