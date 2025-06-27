@@ -1,4 +1,4 @@
-package com.zed.user_service.dto;
+package com.zed.company_service.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,7 +7,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserDTO {
+public class UserInfoDto {
+
     private Long id;
     private String firstName;
     private String lastName;

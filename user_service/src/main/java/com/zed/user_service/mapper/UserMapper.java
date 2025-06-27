@@ -1,33 +1,38 @@
 package com.zed.user_service.mapper;
 
-import com.zed.user_service.dto.CreateUserDTO;
-import com.zed.user_service.dto.EmployeeDTO;
-import com.zed.user_service.dto.UpdateUserDTO;
-import com.zed.user_service.dto.UserDTO;
-import com.zed.user_service.dto.UserInfoDTO;
-import com.zed.user_service.entity.User;
+import com.zed.user_service.dto.CompanyInfoDto;
+import com.zed.user_service.dto.CreateUserDto;
+import com.zed.user_service.dto.PatchUserDto;
+import com.zed.user_service.dto.UpdateUserDto;
+import com.zed.user_service.dto.UserInfoDto;
+import com.zed.user_service.dto.UserResponseDto;
+import com.zed.user_service.entity.UserEntity;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
-import org.mapstruct.MappingConstants;
+import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.Mappings;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
-import java.util.List;
-
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring")
 public interface UserMapper {
 
-    List<UserInfoDTO> toUserInfoDtoList(List<User> users);
+    UserEntity toUserEntity(CreateUserDto dto);
 
-    User toUserEntity(CreateUserDTO createUserDTO);
+    @Mappings({
+            @Mapping(source = "user.id", target = "id"),
+            @Mapping(source = "user.firstName", target = "firstName"),
+            @Mapping(source = "user.lastName", target = "lastName"),
+            @Mapping(source = "user.phoneNumber", target = "phoneNumber"),
+            @Mapping(source = "company", target = "company")
+    })
+    UserResponseDto toUserResponseDto(UserEntity user, CompanyInfoDto company);
 
-    UserDTO toUserDTO(User savedEntity);
+    @Mapping(target = "id", source = "id")
+    UserInfoDto toUserInfoDto(UserEntity user);
 
-    EmployeeDTO toEmployeeDTO(User user);
+    void updateUserFromDto(UpdateUserDto dto, @MappingTarget UserEntity user);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateEntityFromDTO(UpdateUserDTO updateUserDTO, @MappingTarget User user);
-
-    List<UserDTO> toUserDTOList(List<User> userEntities);
+    void patchUserFromDto(PatchUserDto dto, @MappingTarget UserEntity user);
 }
-

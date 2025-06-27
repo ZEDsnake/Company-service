@@ -1,24 +1,30 @@
 package com.zed.company_service.service;
 
-import com.zed.company_service.dto.CompanyDTO;
-import com.zed.company_service.dto.CreateCompanyDTO;
-import com.zed.company_service.dto.UpdateCompanyDTO;
-import com.zed.company_service.dto.UserInfoDTO;
+import com.zed.company_service.dto.CompanyResponseDto;
+import com.zed.company_service.dto.CreateCompanyDto;
+import com.zed.company_service.dto.PagedCompanyResponseDto;
+import com.zed.company_service.dto.PatchCompanyDto;
+import com.zed.company_service.dto.UpdateCompanyDto;
+import com.zed.company_service.dto.UserInfoDto;
+import jakarta.validation.constraints.Min;
 
 import java.util.List;
 
 public interface CompanyService {
 
-    List<UserInfoDTO> getCompanyEmployees(Long companyId, int page, int size);
+    CompanyResponseDto createCompany(CreateCompanyDto dto);
 
-    CompanyDTO addCompany(CreateCompanyDTO companyDTO);
+    CompanyResponseDto updateCompany(Long id, UpdateCompanyDto dto);
 
-    CompanyDTO updateCompany(Long id, UpdateCompanyDTO updateCompanyDTO);
+    CompanyResponseDto patchCompany(Long id, PatchCompanyDto dto);
 
     void deleteCompany(Long id);
 
-    List<CompanyDTO> getCompanies(int page, int size);
+    CompanyResponseDto getCompanyById(Long id);
 
-    CompanyDTO getCompanyById(Long id);
+    PagedCompanyResponseDto getAllCompanies(int page, int size);
+
+    void addEmployeeToCompany(Long companyId, Long employeeId);
+
+    void removeEmployeeFromCompany(Long companyId, Long employeeId);
 }
-

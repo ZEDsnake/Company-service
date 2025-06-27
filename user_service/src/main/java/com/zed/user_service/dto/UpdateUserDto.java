@@ -12,7 +12,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateUserDTO {
+public class UpdateUserDto {
+
     @NotBlank(message = "First name is required")
     @Size(min = 2, max = 50, message = "Firstname must be between 2 and 50 characters")
     private String firstName;
@@ -21,7 +22,7 @@ public class CreateUserDTO {
     @Size(min = 2, max = 50, message = "Lastname must be between 2 and 50 characters")
     private String lastName;
 
-    @NotBlank
+    @NotBlank(message = "Phone number is required")
     @Pattern(regexp = "^\\+7[0-9]{10}$", message = "Phone must be in format +79123456789")
     private String phoneNumber;
 

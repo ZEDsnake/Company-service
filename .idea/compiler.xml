@@ -18,8 +18,8 @@
           <entry name="$MAVEN_REPOSITORY$/org/mapstruct/mapstruct/1.6.0/mapstruct-1.6.0.jar" />
         </processorPath>
         <module name="user_service" />
-        <module name="company_service" />
         <module name="eureka_service" />
+        <module name="company_service" />
         <module name="config_service" />
         <module name="gateway_service" />
       </profile>

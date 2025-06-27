@@ -1,29 +1,32 @@
 package com.zed.user_service.service;
 
-
-
-import com.zed.user_service.dto.CreateUserDTO;
-import com.zed.user_service.dto.EmployeeDTO;
-import com.zed.user_service.dto.UpdateUserDTO;
-import com.zed.user_service.dto.UserDTO;
-import com.zed.user_service.dto.UserInfoDTO;
+import com.zed.user_service.dto.CreateUserDto;
+import com.zed.user_service.dto.PagedUserResponseDto;
+import com.zed.user_service.dto.PatchUserDto;
+import com.zed.user_service.dto.UpdateUserDto;
+import com.zed.user_service.dto.UserInfoDto;
+import com.zed.user_service.dto.UserResponseDto;
 
 import java.util.List;
 
+
 public interface UserService {
-    List<UserInfoDTO> getUserInfoByCompanyId(Long companyId, int page, int size);
 
-    void deleteUsersByCompanyId(Long companyId);
+    UserResponseDto createUser(CreateUserDto dto);
 
-    UserDTO createUser(CreateUserDTO userDTO);
+    UserResponseDto updateUser(Long id, UpdateUserDto dto);
 
-    EmployeeDTO getUserWithCompany(Long id);
-
-    UserDTO updateUser(Long id, UpdateUserDTO updateUserDTO);
+    UserResponseDto patchUser(Long id, PatchUserDto dto);
 
     void deleteUser(Long id);
 
-    List<UserDTO> getAllUsers( int page, int size);
+    UserResponseDto getUserById(Long id);
 
-    UserDTO getUserById(Long id);
+    PagedUserResponseDto getAllUsers(int page, int size);
+
+    List<UserInfoDto> getUsersByIds(List<Long> userIds);
+
+    void deleteUsersByCompanyId(Long companyId);
+
+    void updateUserCompany(Long userId, Long companyId);
 }

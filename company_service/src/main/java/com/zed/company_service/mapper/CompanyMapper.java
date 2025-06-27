@@ -1,26 +1,31 @@
 package com.zed.company_service.mapper;
 
+import com.zed.company_service.dto.CompanyInfoDto;
+import com.zed.company_service.dto.CompanyResponseDto;
+import com.zed.company_service.dto.CreateCompanyDto;
+import com.zed.company_service.dto.PatchCompanyDto;
+import com.zed.company_service.dto.UpdateCompanyDto;
+import com.zed.company_service.dto.UserInfoDto;
+import com.zed.company_service.entity.CompanyEntity;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
-import org.mapstruct.MappingConstants;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
-import com.zed.company_service.dto.CompanyDTO;
-import com.zed.company_service.dto.CreateCompanyDTO;
-import com.zed.company_service.dto.UpdateCompanyDTO;
-import com.zed.company_service.entity.CompanyEntity;
 
 import java.util.List;
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring")
 public interface CompanyMapper {
 
-    CompanyDTO toCompanyDTO(CompanyEntity entity);
+    CompanyResponseDto toCompanyResponseDto(CompanyEntity entity, List<UserInfoDto> employees);
 
-    List<CompanyDTO> toCompanyDTOList(List<CompanyEntity> entities);
+    CompanyInfoDto toCompanyInfoDto(CompanyEntity entity);
 
-    CompanyEntity toCompanyEntity(CreateCompanyDTO dto);
+    CompanyEntity toCompanyEntity(CreateCompanyDto dto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    void updateEntityFromDTO(UpdateCompanyDTO dto, @MappingTarget CompanyEntity entity);
+    void updateEntityFromUpdateDto(UpdateCompanyDto dto, @MappingTarget CompanyEntity entity);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void updateEntityFromPatchDto(PatchCompanyDto dto, @MappingTarget CompanyEntity entity);
 }

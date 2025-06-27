@@ -4,10 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Data
-public class CompanyInfoDTO {
+public class CompanyInfoDto {
+
     private Long id;
     private String name;
+    private BigDecimal budget;
 }

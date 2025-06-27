@@ -12,20 +12,21 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-@RestControllerAdvice
 @Slf4j
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorDTO handleNotFoundException(NotFoundException ex) {
+        log.error("Not found: {}", ex.getMessage());
         return new ErrorDTO(ex.getMessage(), LocalDateTime.now());
     }
 
     @ExceptionHandler(AlreadyExistsException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ErrorDTO handlePhoneNumberAlreadyExists(AlreadyExistsException ex) {
-        log.error("Phone number conflict: {}", ex.getMessage());
+    public ErrorDTO handleAlreadyExistsException(AlreadyExistsException ex) {
+        log.error("Conflict: {}", ex.getMessage());
         return new ErrorDTO(ex.getMessage(), LocalDateTime.now());
     }
 
@@ -35,20 +36,20 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 errors.put(error.getField(), error.getDefaultMessage()));
+        log.error("Validation error: {}", errors);
         return errors;
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, Object> handleConstraintViolationException(ConstraintViolationException ex) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("error", "Bad Request");
-
-        String errorMessage = ex.getConstraintViolations().iterator().next().getMessage();
-        response.put("message", errorMessage);
-
-        return response;
+    public Map<String, String> handleConstraintViolationException(ConstraintViolationException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getConstraintViolations().forEach(violation -> {
+            String fieldName = violation.getPropertyPath().toString();
+            String simpleFieldName = fieldName.substring(fieldName.lastIndexOf('.') + 1);
+            errors.put(simpleFieldName, violation.getMessage());
+        });
+        log.error("Constraint violation: {}", errors);
+        return errors;
     }
 }

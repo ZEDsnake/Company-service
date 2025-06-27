@@ -3,3 +3,12 @@ CREATE TABLE IF NOT EXISTS companies (
     name VARCHAR(255) UNIQUE NOT NULL,
     budget NUMERIC(19, 2) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS company_employee_ids (
+    company_id BIGINT NOT NULL,
+    employee_id BIGINT NOT NULL,
+    CONSTRAINT fk_company FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE,
+    CONSTRAINT uk_company_employee UNIQUE (company_id, employee_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_company_employee_ids ON company_employee_ids(company_id);

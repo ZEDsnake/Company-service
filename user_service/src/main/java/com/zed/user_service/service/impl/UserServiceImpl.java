@@ -1,14 +1,13 @@
 package com.zed.user_service.service.impl;
 
-
-
-import com.zed.user_service.dto.CompanyInfoDTO;
-import com.zed.user_service.dto.CreateUserDTO;
-import com.zed.user_service.dto.EmployeeDTO;
-import com.zed.user_service.dto.UpdateUserDTO;
-import com.zed.user_service.dto.UserDTO;
-import com.zed.user_service.dto.UserInfoDTO;
-import com.zed.user_service.entity.User;
+import com.zed.user_service.dto.CompanyInfoDto;
+import com.zed.user_service.dto.CreateUserDto;
+import com.zed.user_service.dto.PagedUserResponseDto;
+import com.zed.user_service.dto.PatchUserDto;
+import com.zed.user_service.dto.UpdateUserDto;
+import com.zed.user_service.dto.UserInfoDto;
+import com.zed.user_service.dto.UserResponseDto;
+import com.zed.user_service.entity.UserEntity;
 import com.zed.user_service.exception.AlreadyExistsException;
 import com.zed.user_service.exception.NotFoundException;
 import com.zed.user_service.feign.CompanyClient;
@@ -25,10 +24,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
+@Slf4j
+@Transactional
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -36,118 +38,187 @@ public class UserServiceImpl implements UserService {
     private final CompanyClient companyClient;
 
     @Override
-    public List<UserInfoDTO> getUserInfoByCompanyId(Long companyId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        List<User> users = userRepository.findByCompanyId(companyId, pageable);
-        return userMapper.toUserInfoDtoList(users);
-    }
-
-    @Override
-    @Transactional
-    public void deleteUsersByCompanyId(Long companyId) {
-        userRepository.deleteByCompanyId(companyId);
-    }
-
-    @Override
-    @Transactional
-    public UserDTO createUser(CreateUserDTO createUserDTO) {
-        checkPhoneAlreadyExists(createUserDTO.getPhoneNumber());
-        checkIfCompanyExists(createUserDTO.getCompanyId());
-
-        User user = userMapper.toUserEntity(createUserDTO);
-        user.setCompanyId(createUserDTO.getCompanyId());
-
-        User savedEntity = userRepository.save(user);
-        UserDTO result = userMapper.toUserDTO(savedEntity);
-        log.info("User created successfully: {}", result);
+    public UserResponseDto createUser(CreateUserDto dto) {
+        checkPhoneUnique(dto.getPhoneNumber());
+        checkCompanyExists(dto.getCompanyId());
+        UserEntity entity = userMapper.toUserEntity(dto);
+        UserEntity saved = userRepository.save(entity);
+        syncAddUserToCompany(saved.getId(), saved.getCompanyId());
+        CompanyInfoDto company = fetchCompany(saved.getCompanyId());
+        UserResponseDto result = userMapper.toUserResponseDto(saved, company);
+        log.info("Created user with id: {}", result.getId());
         return result;
     }
 
     @Override
-    @Transactional
-    public EmployeeDTO getUserWithCompany(Long userId) {
-        User user = findUserById(userId);
-        EmployeeDTO dto = userMapper.toEmployeeDTO(user);
-        dto.setCompany(fetchCompany(user.getCompanyId()));
-        log.info("Returning employee with company info: {}", dto);
-        return dto;
-    }
-
-    @Override
-    @Transactional
-    public UserDTO updateUser(Long id, UpdateUserDTO updateUserDTO) {
-        User existingUser = findUserById(id);
-        validatePhoneNumberChange(existingUser, updateUserDTO);
-
-        checkIfCompanyExists(updateUserDTO.getCompanyId());
-
-        userMapper.updateEntityFromDTO(updateUserDTO, existingUser);
-        existingUser.setCompanyId(updateUserDTO.getCompanyId());
-
-        User updatedEntity = userRepository.save(existingUser);
-        UserDTO result = userMapper.toUserDTO(updatedEntity);
-        log.info("User updated successfully: {}", result);
+    public UserResponseDto updateUser(Long id, UpdateUserDto dto) {
+        UserEntity entity = getUserEntityById(id);
+        checkPhoneChange(entity.getPhoneNumber(), dto.getPhoneNumber());
+        checkCompanyExists(dto.getCompanyId());
+        Long oldCompanyId = entity.getCompanyId();
+        userMapper.updateUserFromDto(dto, entity);
+        UserEntity updated = userRepository.save(entity);
+        syncCompanyChange(updated.getId(), oldCompanyId, updated.getCompanyId());
+        CompanyInfoDto company = fetchCompany(updated.getCompanyId());
+        UserResponseDto result = userMapper.toUserResponseDto(updated, company);
+        log.info("Updated user with id: {}", result.getId());
         return result;
     }
 
+    @Override
+    public UserResponseDto patchUser(Long id, PatchUserDto dto) {
+        UserEntity entity = getUserEntityById(id);
+        checkPhonePatch(entity.getPhoneNumber(), dto.getPhoneNumber());
+        checkCompanyPatch(dto.getCompanyId());
+        Long oldCompanyId = entity.getCompanyId();
+        userMapper.patchUserFromDto(dto, entity);
+        UserEntity patched = userRepository.save(entity);
+        syncCompanyPatch(patched.getId(), oldCompanyId, dto.getCompanyId());
+        CompanyInfoDto company = fetchCompany(patched.getCompanyId());
+        UserResponseDto result = userMapper.toUserResponseDto(patched, company);
+        log.info("Patched user with id: {}", result.getId());
+        return result;
+    }
 
     @Override
-    @Transactional
     public void deleteUser(Long id) {
-        User user = findUserById(id);
-        userRepository.delete(user);
-        log.info("UserService: User with id={} deleted successfully", id);
+        UserEntity entity = getUserEntityById(id);
+        userRepository.deleteById(id);
+        syncRemoveUserFromCompany(id, entity.getCompanyId());
+        log.info("Deleted user with id: {}", id);
     }
 
     @Override
-    @Transactional
-    public List<UserDTO> getAllUsers(int page, int size) {
+    public UserResponseDto getUserById(Long id) {
+        UserEntity entity = getUserEntityById(id);
+        CompanyInfoDto company = fetchCompany(entity.getCompanyId());
+        UserResponseDto result = userMapper.toUserResponseDto(entity, company);
+        log.info("Fetched user with id: {}", result.getId());
+        return result;
+    }
+
+    @Override
+    public PagedUserResponseDto getAllUsers(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<User> userPage = userRepository.findAll(pageable);
-        return userMapper.toUserDTOList(userPage.getContent());
+        Page<UserEntity> pageResult = userRepository.findAll(pageable);
+        List<UserResponseDto> users = pageResult.stream()
+                .map(user -> userMapper.toUserResponseDto(user, fetchCompany(user.getCompanyId())))
+                .collect(Collectors.toList());
+        PagedUserResponseDto result = new PagedUserResponseDto(
+                users,
+                pageResult.getNumber(),
+                pageResult.getTotalPages(),
+                pageResult.getTotalElements());
+        log.info("Fetched {} users", result.getUsers().size());
+        return result;
     }
 
     @Override
-    @Transactional
-    public UserDTO getUserById(Long id) {
-        User user = findUserById(id);
-        UserDTO dto = userMapper.toUserDTO(user);
-        log.info("Returning user by id: {}", dto);
-        return dto;
+    public List<UserInfoDto> getUsersByIds(List<Long> ids) {
+        List<UserInfoDto> result = userRepository.findAllById(ids).stream()
+                .map(userMapper::toUserInfoDto)
+                .collect(Collectors.toList());
+        log.info("Fetched {} users by ids", result.size());
+        return result;
     }
 
+    @Override
+    public void deleteUsersByCompanyId(Long companyId) {
+        List<UserEntity> users = userRepository.findAllByCompanyId(companyId);
+        userRepository.deleteAll(users);
+        log.info("Deleted {} users for company id: {}", users.size(), companyId);
+    }
 
-    private User findUserById(Long id) {
+    @Override
+    public void updateUserCompany(Long userId, Long companyId) {
+        UserEntity user = getUserEntityById(userId);
+        user.setCompanyId(companyId);
+        userRepository.save(user);
+        log.info("Updated user {} company to {}", userId, companyId == null ? "null" : companyId);
+    }
+
+    private UserEntity getUserEntityById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(()->new NotFoundException("User not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException("User not found with id " + id));
     }
 
-    private void checkPhoneAlreadyExists(String phoneNumber) {
+    private void checkPhoneUnique(String phoneNumber) {
         if (userRepository.existsByPhoneNumber(phoneNumber)) {
-            throw new AlreadyExistsException(
-                    "User with phone number " + phoneNumber + " already exists");
+            throw new AlreadyExistsException("Phone number already exists: " + phoneNumber);
         }
     }
 
-    private void validatePhoneNumberChange(User existingUser, UpdateUserDTO updateUserDTO) {
-        if (isPhoneNumberChanged(existingUser, updateUserDTO)) {
-            checkPhoneAlreadyExists(updateUserDTO.getPhoneNumber());
+    private void checkPhoneChange(String oldPhone, String newPhone) {
+        if (!oldPhone.equals(newPhone)) {
+            checkPhoneUnique(newPhone);
         }
     }
 
-    private boolean isPhoneNumberChanged(User existingUser, UpdateUserDTO updateUserDTO) {
-        return !existingUser.getPhoneNumber().equals(updateUserDTO.getPhoneNumber());
+    private void checkPhonePatch(String oldPhone, String newPhone) {
+        if (newPhone != null && !newPhone.equals(oldPhone)) {
+            checkPhoneUnique(newPhone);
+        }
     }
 
-    private void checkIfCompanyExists(Long companyId) {
+    private void checkCompanyExists(Long companyId) {
+        if (companyId == null) return;
         try {
             companyClient.getCompanyById(companyId);
-        } catch (FeignException.NotFound e) {
-            throw new NotFoundException("Company not found with ID: " + companyId);
+        } catch (Exception e) {
+            log.error("Company with id {} not found: {}", companyId, e.getMessage());
+            throw new NotFoundException("Company not found with id " + companyId);
         }
     }
 
-    private CompanyInfoDTO fetchCompany(Long companyId) {
-        return companyId != null ? companyClient.getCompanyById(companyId) : null;
+    private void checkCompanyPatch(Long companyId) {
+        if (companyId != null) {
+            checkCompanyExists(companyId);
+        }
+    }
+
+    private void syncAddUserToCompany(Long userId, Long companyId) {
+        if (companyId == null) return;
+        try {
+            companyClient.addEmployee(companyId, userId);
+        } catch (Exception e) {
+            log.warn("Failed to add user {} to company {}: {}", userId, companyId, e.getMessage());
+        }
+    }
+
+    private void syncRemoveUserFromCompany(Long userId, Long companyId) {
+        if (companyId == null) return;
+        try {
+            companyClient.removeEmployee(companyId, userId);
+        } catch (Exception e) {
+            log.warn("Failed to remove user {} from company {}: {}", userId, companyId, e.getMessage());
+        }
+    }
+
+    private void syncCompanyChange(Long userId, Long oldCompanyId, Long newCompanyId) {
+        if (!Objects.equals(oldCompanyId, newCompanyId)) {
+            syncRemoveUserFromCompany(userId, oldCompanyId);
+            syncAddUserToCompany(userId, newCompanyId);
+        }
+    }
+
+    private void syncCompanyPatch(Long userId, Long oldCompanyId, Long newCompanyId) {
+        if (newCompanyId != null && !Objects.equals(oldCompanyId, newCompanyId)) {
+            syncRemoveUserFromCompany(userId, oldCompanyId);
+            syncAddUserToCompany(userId, newCompanyId);
+        }
+    }
+
+    private CompanyInfoDto fetchCompany(Long companyId) {
+        if (companyId == null) {
+            return null;
+        }
+        try {
+            return companyClient.getCompanyById(companyId);
+        } catch (FeignException.NotFound e) {
+            return null;
+        } catch (Exception e) {
+            log.error("Error fetching company with id {}: {}", companyId, e.getMessage());
+            return null;
+        }
     }
 }

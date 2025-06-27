@@ -1,21 +1,24 @@
+server:
+  port: 8080
 spring:
+  application:
+    name: gateway
   cloud:
     gateway:
       routes:
-        - id: company-service
-          uri: lb://COMPANY-SERVICE
-          predicates:
-            - Path=/api/companies/**
-          filters:
-            - StripPrefix=1
-
-        - id: user-service
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/api/users/**
-          filters:
-            - StripPrefix=1
-  eureka:
-    client:
-      service-url:
-        defaultZone: http://eureka-server:8761/eureka/
+         - id: company-service
+           uri: lb://company-service
+           predicates:
+             - Path=/api/companies/**
+           filters:
+             - StripPrefix=1
+         - id: user-service
+           uri: lb://user-service
+           predicates:
+             - Path=/api/users/**
+           filters:
+             - StripPrefix=1
+eureka:
+  client:
+     service-url:
+       defaultZone: http://eureka-server:8761/eureka/

@@ -1,6 +1,18 @@
 package com.zed.company_service.service;
 
-
+import com.zed.company_service.dto.CompanyResponseDto;
+import com.zed.company_service.dto.CreateCompanyDto;
+import com.zed.company_service.dto.PagedCompanyResponseDto;
+import com.zed.company_service.dto.PatchCompanyDto;
+import com.zed.company_service.dto.UpdateCompanyDto;
+import com.zed.company_service.dto.UserInfoDto;
+import com.zed.company_service.entity.CompanyEntity;
+import com.zed.company_service.exception.AlreadyExistsException;
+import com.zed.company_service.exception.NotFoundException;
+import com.zed.company_service.feign.UserClient;
+import com.zed.company_service.mapper.CompanyMapper;
+import com.zed.company_service.repository.CompanyRepository;
+import com.zed.company_service.service.impl.CompanyServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,235 +21,267 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import com.zed.company_service.dto.CompanyDTO;
-import com.zed.company_service.dto.CreateCompanyDTO;
-import com.zed.company_service.dto.UpdateCompanyDTO;
-import com.zed.company_service.dto.UserInfoDTO;
-import com.zed.company_service.entity.CompanyEntity;
-import com.zed.company_service.exception.AlreadyExistsException;
-import com.zed.company_service.exception.NotFoundException;
-import com.zed.company_service.feign.UserClient;
-import com.zed.company_service.mapper.CompanyMapper;
-import com.zed.company_service.repository.CompanyRepository;
-import com.zed.company_service.service.impl.CompanyServiceImpl;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CompanyServiceImplUnitTest {
 
     @Mock
-    private UserClient userClient;
+    private CompanyRepository companyRepository;
 
     @Mock
     private CompanyMapper companyMapper;
 
     @Mock
-    private CompanyRepository companyRepository;
+    private UserClient userClient;
 
     @InjectMocks
     private CompanyServiceImpl companyService;
 
-    private CompanyEntity companyEntity;
-    private CompanyDTO companyDTO;
-    private CreateCompanyDTO createCompanyDTO;
-    private UpdateCompanyDTO updateCompanyDTO;
-
-    private UserInfoDTO userInfo1, userInfo2;
+    private CompanyEntity exampleEntity;
+    private CreateCompanyDto createDto;
+    private UpdateCompanyDto updateDto;
+    private PatchCompanyDto patchDto;
+    private UserInfoDto user1;
+    private UserInfoDto user2;
 
     @BeforeEach
-    void setup() {
-        companyEntity = new CompanyEntity();
-        companyEntity.setId(1L);
-        companyEntity.setName("Test Company");
-        companyEntity.setBudget(BigDecimal.valueOf(1000));
+    void setUp() {
+        exampleEntity = new CompanyEntity();
+        exampleEntity.setId(1L);
+        exampleEntity.setName("TestCompany");
+        exampleEntity.setBudget(new BigDecimal("1000"));
+        exampleEntity.setEmployeeIds(new ArrayList<>(List.of(1L, 2L)));
 
-        companyDTO = new CompanyDTO(1L, "Test Company", BigDecimal.valueOf(1000));
+        createDto = new CreateCompanyDto("TestCompany", new BigDecimal("1000"), List.of(1L, 2L));
+        updateDto = new UpdateCompanyDto("UpdatedCompany", new BigDecimal("2000"), List.of(1L));
+        patchDto = new PatchCompanyDto();
+        patchDto.setName("PatchedCompany");
+        patchDto.setBudget(new BigDecimal("3000"));
+        patchDto.setEmployeeIds(List.of(2L));
 
-        createCompanyDTO = new CreateCompanyDTO("Test Company", BigDecimal.valueOf(1000));
-        updateCompanyDTO = new UpdateCompanyDTO("Updated Company", BigDecimal.valueOf(2000));
-
-        userInfo1 = new UserInfoDTO("John", "Doe", "+72345678908");
-        userInfo2 = new UserInfoDTO("Jane", "Smith", "+78765432103");
+        user1 = new UserInfoDto(1L, "John", "Doe", "+123456789");
+        user2 = new UserInfoDto(2L, "Jane", "Doe", "+987654321");
     }
 
     @Test
-    void addCompany_ShouldSaveAndReturnCompanyDTO() {
-        when(companyRepository.existsByName(createCompanyDTO.getName())).thenReturn(false);
-        when(companyMapper.toCompanyEntity(createCompanyDTO)).thenReturn(companyEntity);
-        when(companyRepository.save(companyEntity)).thenReturn(companyEntity);
-        when(companyMapper.toCompanyDTO(companyEntity)).thenReturn(companyDTO);
+    void createCompany_Success() {
+        when(companyRepository.existsByNameIgnoreCase(createDto.getName())).thenReturn(false);
+        when(userClient.getUsersByIds(anyList())).thenReturn(List.of(user1, user2));
+        when(companyMapper.toCompanyEntity(createDto)).thenReturn(exampleEntity);
+        when(companyRepository.save(exampleEntity)).thenReturn(exampleEntity);
+        when(companyMapper.toCompanyResponseDto(exampleEntity, List.of(user1, user2)))
+                .thenReturn(new CompanyResponseDto(1L, "TestCompany", new BigDecimal("1000"), List.of(user1, user2)));
 
-        CompanyDTO result = companyService.addCompany(createCompanyDTO);
+        CompanyResponseDto response = companyService.createCompany(createDto);
 
-        assertThat(result).isEqualTo(companyDTO);
-        verify(companyRepository).existsByName(createCompanyDTO.getName());
-        verify(companyMapper).toCompanyEntity(createCompanyDTO);
-        verify(companyRepository).save(companyEntity);
-        verify(companyMapper).toCompanyDTO(companyEntity);
+        assertEquals("TestCompany", response.getName());
+        verify(companyRepository).existsByNameIgnoreCase(createDto.getName());
+        verify(userClient, times(2)).getUsersByIds(anyList());  // ожидаем 2 вызова
+        verify(companyRepository).save(exampleEntity);
+        verify(userClient, times(createDto.getEmployeeIds().size())).updateUserCompany(anyLong(), eq(1L));
+        verify(companyMapper).toCompanyResponseDto(exampleEntity, List.of(user1, user2));
+    }
+
+
+    @Test
+    void createCompany_AlreadyExistsException() {
+        when(companyRepository.existsByNameIgnoreCase(createDto.getName())).thenReturn(true);
+
+        assertThrows(AlreadyExistsException.class, () -> companyService.createCompany(createDto));
+        verify(companyRepository).existsByNameIgnoreCase(createDto.getName());
+        verifyNoMoreInteractions(userClient, companyRepository, companyMapper);
     }
 
     @Test
-    void addCompany_ShouldThrowAlreadyExistsException_WhenNameExists() {
-        when(companyRepository.existsByName(createCompanyDTO.getName())).thenReturn(true);
+    void createCompany_EmployeeNotFoundException() {
+        when(companyRepository.existsByNameIgnoreCase(createDto.getName())).thenReturn(false);
+        when(userClient.getUsersByIds(createDto.getEmployeeIds())).thenReturn(List.of(user1)); // Один сотрудник отсутствует
 
-        assertThatThrownBy(() -> companyService.addCompany(createCompanyDTO))
-                .isInstanceOf(AlreadyExistsException.class)
-                .hasMessageContaining("Company with name \"" + createCompanyDTO.getName() + "\" already exists");
-
-        verify(companyRepository).existsByName(createCompanyDTO.getName());
-        verify(companyRepository, never()).save(any());
-        verify(companyMapper, never()).toCompanyEntity(any());
+        NotFoundException ex = assertThrows(NotFoundException.class, () -> companyService.createCompany(createDto));
+        assertTrue(ex.getMessage().contains("Employees not found"));
     }
 
     @Test
-    void getCompanyById_ShouldReturnCompanyDTO_WhenCompanyExists() {
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(companyEntity));
-        when(companyMapper.toCompanyDTO(companyEntity)).thenReturn(companyDTO);
+    void updateCompany_Success() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.of(exampleEntity));
+        when(companyRepository.existsByNameIgnoreCase(updateDto.getName())).thenReturn(false);
+        doNothing().when(companyMapper).updateEntityFromUpdateDto(updateDto, exampleEntity);
+        when(companyRepository.save(exampleEntity)).thenReturn(exampleEntity);
+        when(userClient.getUsersByIds(exampleEntity.getEmployeeIds())).thenReturn(List.of(user1));
+        when(companyMapper.toCompanyResponseDto(exampleEntity, List.of(user1)))
+                .thenReturn(new CompanyResponseDto(1L, "UpdatedCompany", new BigDecimal("2000"), List.of(user1)));
 
-        CompanyDTO result = companyService.getCompanyById(1L);
+        CompanyResponseDto response = companyService.updateCompany(1L, updateDto);
 
-        assertThat(result).isEqualTo(companyDTO);
+        assertEquals("UpdatedCompany", response.getName());
         verify(companyRepository).findById(1L);
-        verify(companyMapper).toCompanyDTO(companyEntity);
+        verify(companyRepository).existsByNameIgnoreCase(updateDto.getName());
+        verify(companyMapper).updateEntityFromUpdateDto(updateDto, exampleEntity);
+        verify(companyRepository).save(exampleEntity);
+        verify(userClient).getUsersByIds(exampleEntity.getEmployeeIds());
     }
 
     @Test
-    void getCompanyById_ShouldThrowNotFoundException_WhenCompanyNotFound() {
-        when(companyRepository.findById(99L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> companyService.getCompanyById(99L))
-                .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("Company not found with id: 99");
-
-        verify(companyRepository).findById(99L);
-        verify(companyMapper, never()).toCompanyDTO(any());
-    }
-
-    @Test
-    void updateCompany_ShouldCallUpdateEntityFromDTO() {
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(companyEntity));
-        when(companyRepository.existsByName(updateCompanyDTO.getName())).thenReturn(false);
-
-        companyService.updateCompany(1L, updateCompanyDTO);
-
-        verify(companyMapper).updateEntityFromDTO(updateCompanyDTO, companyEntity);
-    }
-
-    @Test
-    void updateCompany_ShouldUpdateAndReturnUpdatedCompanyDTO() {
-        Long companyId = 1L;
-        when(companyRepository.findById(companyId)).thenReturn(Optional.of(companyEntity));
-        when(companyRepository.existsByName(updateCompanyDTO.getName())).thenReturn(false);
-        doNothing().when(companyMapper).updateEntityFromDTO(updateCompanyDTO, companyEntity);
-        when(companyRepository.save(companyEntity)).thenReturn(companyEntity);
-
-        CompanyDTO updatedDTO = new CompanyDTO(companyId, updateCompanyDTO.getName(), updateCompanyDTO.getBudget());
-        when(companyMapper.toCompanyDTO(companyEntity)).thenReturn(updatedDTO);
-
-        CompanyDTO result = companyService.updateCompany(companyId, updateCompanyDTO);
-
-        assertThat(result.getName()).isEqualTo(updateCompanyDTO.getName());
-        assertThat(result.getBudget()).isEqualTo(updateCompanyDTO.getBudget());
-        assertThat(result.getId()).isEqualTo(companyId);
-
-        verify(companyRepository).findById(companyId);
-        verify(companyRepository).existsByName(updateCompanyDTO.getName());
-        verify(companyMapper).updateEntityFromDTO(updateCompanyDTO, companyEntity);
-        verify(companyRepository).save(companyEntity);
-        verify(companyMapper).toCompanyDTO(companyEntity);
-    }
-
-    @Test
-    void updateCompany_ShouldThrowAlreadyExistsException_WhenNewNameExists() {
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(companyEntity));
-        when(companyRepository.existsByName(updateCompanyDTO.getName())).thenReturn(true);
-
-        assertThatThrownBy(() -> companyService.updateCompany(1L, updateCompanyDTO))
-                .isInstanceOf(AlreadyExistsException.class)
-                .hasMessageContaining("Company with name \"" + updateCompanyDTO.getName() + "\" already exists");
-
+    void updateCompany_NotFoundException() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(NotFoundException.class, () -> companyService.updateCompany(1L, updateDto));
         verify(companyRepository).findById(1L);
-        verify(companyRepository).existsByName(updateCompanyDTO.getName());
-        verify(companyRepository, never()).save(any());
     }
 
     @Test
-    void updateCompany_ShouldThrowNotFoundException_WhenCompanyNotFound() {
-        when(companyRepository.findById(99L)).thenReturn(Optional.empty());
+    void patchCompany_Success() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.of(exampleEntity));
+        when(companyRepository.existsByNameIgnoreCase(patchDto.getName())).thenReturn(false);
+        doNothing().when(companyMapper).updateEntityFromPatchDto(patchDto, exampleEntity);
+        when(companyRepository.save(exampleEntity)).thenReturn(exampleEntity);
+        when(userClient.getUsersByIds(exampleEntity.getEmployeeIds())).thenReturn(List.of(user2));
+        when(companyMapper.toCompanyResponseDto(exampleEntity, List.of(user2)))
+                .thenReturn(new CompanyResponseDto(1L, "PatchedCompany", new BigDecimal("3000"), List.of(user2)));
 
-        assertThatThrownBy(() -> companyService.updateCompany(99L, updateCompanyDTO))
-                .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("Company not found with id: 99");
+        CompanyResponseDto response = companyService.patchCompany(1L, patchDto);
 
-        verify(companyRepository).findById(99L);
-        verify(companyRepository, never()).existsByName(any());
-        verify(companyRepository, never()).save(any());
+        assertEquals("PatchedCompany", response.getName());
+        verify(companyRepository).findById(1L);
+        verify(companyRepository).existsByNameIgnoreCase(patchDto.getName());
+        verify(companyMapper).updateEntityFromPatchDto(patchDto, exampleEntity);
+        verify(companyRepository).save(exampleEntity);
+        verify(userClient).getUsersByIds(exampleEntity.getEmployeeIds());
     }
 
     @Test
-    void deleteCompany_ShouldDeleteCompanyAndCallUserClient() {
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(companyEntity));
+    void patchCompany_NotFoundException() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(NotFoundException.class, () -> companyService.patchCompany(1L, patchDto));
+        verify(companyRepository).findById(1L);
+    }
+
+    @Test
+    void deleteCompany_Success() {
+        when(companyRepository.existsById(1L)).thenReturn(true);
+        doNothing().when(userClient).deleteUsersByCompanyId(1L);
+        doNothing().when(companyRepository).deleteById(1L);
 
         companyService.deleteCompany(1L);
 
+        verify(companyRepository).existsById(1L);
         verify(userClient).deleteUsersByCompanyId(1L);
-        verify(companyRepository).delete(companyEntity);
+        verify(companyRepository).deleteById(1L);
     }
 
     @Test
-    void deleteCompany_ShouldThrowNotFoundException_WhenCompanyNotFound() {
-        when(companyRepository.findById(99L)).thenReturn(Optional.empty());
+    void deleteCompany_NotFoundException() {
+        when(companyRepository.existsById(1L)).thenReturn(false);
 
-        assertThatThrownBy(() -> companyService.deleteCompany(99L))
-                .isInstanceOf(NotFoundException.class)
-                .hasMessageContaining("Company not found with id: 99");
-
-        verify(companyRepository).findById(99L);
-        verify(userClient, never()).deleteUsersByCompanyId(anyLong());
-        verify(companyRepository, never()).delete(any());
+        assertThrows(NotFoundException.class, () -> companyService.deleteCompany(1L));
+        verify(companyRepository).existsById(1L);
+        verifyNoMoreInteractions(userClient, companyRepository);
     }
 
     @Test
-    void getCompanies_ShouldReturnListOfCompanyDTO() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<CompanyEntity> page = new PageImpl<>(List.of(companyEntity), pageable, 1);
+    void getCompanyById_Success() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.of(exampleEntity));
+        when(userClient.getUsersByIds(exampleEntity.getEmployeeIds())).thenReturn(List.of(user1, user2));
+        when(companyMapper.toCompanyResponseDto(exampleEntity, List.of(user1, user2)))
+                .thenReturn(new CompanyResponseDto(1L, "TestCompany", new BigDecimal("1000"), List.of(user1, user2)));
 
-        when(companyRepository.findAll(pageable)).thenReturn(page);
-        when(companyMapper.toCompanyDTOList(page.getContent())).thenReturn(List.of(companyDTO));
+        CompanyResponseDto response = companyService.getCompanyById(1L);
 
-        List<CompanyDTO> result = companyService.getCompanies(0, 10);
-
-        assertThat(result).hasSize(1).containsExactly(companyDTO);
-        verify(companyRepository).findAll(pageable);
-        verify(companyMapper).toCompanyDTOList(page.getContent());
+        assertEquals(1L, response.getId());
+        verify(companyRepository).findById(1L);
+        verify(userClient).getUsersByIds(exampleEntity.getEmployeeIds());
+        verify(companyMapper).toCompanyResponseDto(exampleEntity, List.of(user1, user2));
     }
 
     @Test
-    void getCompanyEmployees_ShouldReturnListOfUserInfoDTO() {
-        List<UserInfoDTO> employees = List.of(userInfo1, userInfo2);
+    void getCompanyById_NotFoundException() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.empty());
 
-        when(userClient.getUsersByCompanyId(1L, 0, 10)).thenReturn(employees);
+        assertThrows(NotFoundException.class, () -> companyService.getCompanyById(1L));
+        verify(companyRepository).findById(1L);
+    }
 
-        List<UserInfoDTO> result = companyService.getCompanyEmployees(1L, 0, 10);
+    @Test
+    void getAllCompanies_Success() {
+        Page<CompanyEntity> page = new PageImpl<>(List.of(exampleEntity));
+        when(companyRepository.findAll(any(Pageable.class))).thenReturn(page);
+        when(userClient.getUsersByIds(exampleEntity.getEmployeeIds())).thenReturn(List.of(user1, user2));
+        when(companyMapper.toCompanyResponseDto(exampleEntity, List.of(user1, user2)))
+                .thenReturn(new CompanyResponseDto(1L, "TestCompany", new BigDecimal("1000"), List.of(user1, user2)));
 
-        assertThat(result).isEqualTo(employees);
-        verify(userClient).getUsersByCompanyId(1L, 0, 10);
+        PagedCompanyResponseDto response = companyService.getAllCompanies(0, 10);
+
+        assertEquals(1, response.getCompanies().size());
+        verify(companyRepository).findAll(any(Pageable.class));
+        verify(userClient).getUsersByIds(exampleEntity.getEmployeeIds());
+        verify(companyMapper).toCompanyResponseDto(exampleEntity, List.of(user1, user2));
+    }
+
+    @Test
+    void addEmployeeToCompany_Success() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.of(exampleEntity));
+        when(userClient.getUsersByIds(List.of(3L))).thenReturn(List.of(new UserInfoDto(3L, "Alice", "Wonder", "+111111")));
+        when(companyRepository.findByEmployeeId(3L)).thenReturn(List.of());
+        when(companyRepository.save(exampleEntity)).thenReturn(exampleEntity);
+
+        companyService.addEmployeeToCompany(1L, 3L);
+
+        verify(companyRepository).findById(1L);
+        verify(userClient).getUsersByIds(List.of(3L));
+        verify(companyRepository).findByEmployeeId(3L);
+        verify(companyRepository).save(exampleEntity);
+        verify(userClient).updateUserCompany(3L, 1L);
+    }
+
+    @Test
+    void addEmployeeToCompany_EmployeeNotFound() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.of(exampleEntity));
+        when(userClient.getUsersByIds(List.of(3L))).thenReturn(List.of()); // пусто - сотрудник не найден
+
+        assertThrows(NotFoundException.class, () -> companyService.addEmployeeToCompany(1L, 3L));
+
+        verify(companyRepository).findById(1L);
+        verify(userClient).getUsersByIds(List.of(3L));
+    }
+
+    @Test
+    void removeEmployeeFromCompany_Success() {
+        exampleEntity.setEmployeeIds(new ArrayList<>(List.of(1L, 3L)));
+        when(companyRepository.findById(1L)).thenReturn(Optional.of(exampleEntity));
+        when(companyRepository.save(exampleEntity)).thenReturn(exampleEntity);
+
+        companyService.removeEmployeeFromCompany(1L, 3L);
+
+        assertFalse(exampleEntity.getEmployeeIds().contains(3L));
+        verify(companyRepository).findById(1L);
+        verify(companyRepository).save(exampleEntity);
+        verify(userClient).updateUserCompany(3L, null);
+    }
+
+    @Test
+    void removeEmployeeFromCompany_NotFoundException() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> companyService.removeEmployeeFromCompany(1L, 3L));
+        verify(companyRepository).findById(1L);
     }
 }
-
-
-

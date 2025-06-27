@@ -1,10 +1,11 @@
 package com.zed.user_service.controller;
 
-import com.zed.user_service.dto.CreateUserDTO;
-import com.zed.user_service.dto.EmployeeDTO;
-import com.zed.user_service.dto.UpdateUserDTO;
-import com.zed.user_service.dto.UserDTO;
-import com.zed.user_service.dto.UserInfoDTO;
+import com.zed.user_service.dto.CreateUserDto;
+import com.zed.user_service.dto.PagedUserResponseDto;
+import com.zed.user_service.dto.PatchUserDto;
+import com.zed.user_service.dto.UpdateUserDto;
+import com.zed.user_service.dto.UserInfoDto;
+import com.zed.user_service.dto.UserResponseDto;
 import com.zed.user_service.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -12,88 +13,102 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@Validated
-@Slf4j
-@RequiredArgsConstructor
 @RequestMapping("/users")
+@RequiredArgsConstructor
+@Slf4j
+@Validated
 public class UserController {
 
     private final UserService userService;
 
-    @GetMapping("/by-company/{companyId}")
-    public List<UserInfoDTO> getUserInfoByCompanyId(
-            @PathVariable Long companyId,
-            @RequestParam int page,
-            @RequestParam int size) {
-        return userService.getUserInfoByCompanyId(companyId, page, size);
-    }
-
-    @DeleteMapping("/by-company/{companyId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUsersByCompanyId(@PathVariable Long companyId) {
-        log.info("DELETE request received: \"/users/by-company/{}\"", companyId);
-        userService.deleteUsersByCompanyId(companyId);
-    }
-
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserDTO createUser(@Valid @RequestBody CreateUserDTO createUserDTO) {
-        log.info("POST request received: \"/users\" with body {}", createUserDTO);
-        return userService.createUser(createUserDTO);
-    }
-
-    @GetMapping("/{id}/info")
-    @ResponseStatus(HttpStatus.OK)
-    public EmployeeDTO getUserByIdWithCompany(@PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id) {
-        log.info("GET request received: \"/users/{}/info\"", id);
-        return userService.getUserWithCompany(id);
+    public UserResponseDto createUser(
+            @Valid
+            @RequestBody CreateUserDto dto) {
+        log.info("POST request to /users with body: {}", dto);
+        return userService.createUser(dto);
     }
 
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public UserDTO updateUser(@PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id,
-                              @Valid @RequestBody UpdateUserDTO updateUserDTO) {
-        log.info("PUT request received: \"/users/{}\" with body: {}", id, updateUserDTO);
-        return userService.updateUser(id, updateUserDTO);
+    public UserResponseDto updateUser(
+            @PathVariable
+            @Min(value = 1, message = "Id must be positive and greater than 0") Long id,
+            @Valid
+            @RequestBody UpdateUserDto dto) {
+        log.info("PUT request to /users/{} - update user", id);
+        return userService.updateUser(id, dto);
+    }
+
+    @PatchMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public UserResponseDto patchUser(
+            @PathVariable
+            @Min(value = 1, message = "Id must be positive and greater than 0") Long id,
+            @Valid
+            @RequestBody PatchUserDto dto) {
+        log.info("PATCH request to /users/{} - patch user", id);
+        return userService.patchUser(id, dto);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(@PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id) {
-        log.info("DELETE request received: \"/users/{}\"", id);
+    public void deleteUser(
+            @PathVariable
+            @Min(value = 1, message = "Id must be positive and greater than 0") Long id) {
+        log.info("DELETE request to /users/{} - delete user", id);
         userService.deleteUser(id);
-    }
-
-    @GetMapping
-    @ResponseStatus(HttpStatus.OK)
-    public List<UserDTO> getAllUsers(
-            @RequestParam(defaultValue = "0") @Min(value = 0, message = "Page must be greater than or equal to 0") int page,
-            @RequestParam(defaultValue = "10") @Min(value = 1, message = "Size must be greater than or equal to 1") int size) {
-        log.info("GET request received: \"/users\" with pagination: page={}, size={}", page, size);
-        return userService.getAllUsers(page, size);
     }
 
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public UserDTO getUserById(
-            @PathVariable @Min(value = 1, message = "ID must be a positive number and not less than 1") Long id) {
-        log.info("GET request received: \"/users/{}\"", id);
+    public UserResponseDto getUserById(
+            @PathVariable
+            @Min(value = 1, message = "Id must be positive and greater than 0") Long id) {
+        log.info("GET request to /users/{} - get user", id);
         return userService.getUserById(id);
     }
-}
 
+    @GetMapping
+    @ResponseStatus(HttpStatus.OK)
+    public PagedUserResponseDto getAllUsers(
+            @RequestParam(defaultValue = "0")
+            @Min(value = 0, message = "Page must be positive and greater than 0") int page,
+            @RequestParam(defaultValue = "10")
+            @Min(value = 1, message = "Size must be positive and greater than 1") int size) {
+        log.info("GET request to /users - get all users, page: {}, size: {}", page, size);
+        return userService.getAllUsers(page, size);
+    }
+
+    @PostMapping("/by-ids")
+    @ResponseStatus(HttpStatus.OK)
+    public List<UserInfoDto> getUsersByIds(
+            @RequestBody List<Long> userIds) {
+        return userService.getUsersByIds(userIds);
+    }
+
+    @DeleteMapping("/by-company/{companyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteUsersByCompanyId(
+            @PathVariable
+            @Min(value = 1, message = "Id must be positive and greater than 0")Long companyId) {
+        userService.deleteUsersByCompanyId(companyId);
+    }
+
+    @PostMapping("/{userId}/company")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateUserCompany(
+            @PathVariable
+            @Min(value = 1, message = "Id must be positive and greater than 0")Long userId,
+            @RequestParam(required = false)
+            @Min(value = 1, message = "Id must be positive and greater than 0")Long companyId) {
+        log.info("Updating company for user {} to {}", userId, companyId);
+        userService.updateUserCompany(userId, companyId);
+    }
+}

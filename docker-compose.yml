@@ -15,29 +15,29 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
 
   eureka-server:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE: eureka_service
+      dockerfile: eureka_service/Dockerfile
     container_name: eureka-server
     ports:
       - "8761:8761"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 30s
+      interval: 20s
       timeout: 10s
       retries: 5
+    networks:
+      - app-network
 
   config-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE: config_service
-    container_name: config-service
+      dockerfile: config_service/Dockerfile
+    container_name: config-server
     ports:
       - "8888:8888"
     depends_on:
@@ -47,14 +47,14 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8888/actuator/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 8
+    networks:
+      - app-network
 
   company-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE: company_service
+      dockerfile: company_service/Dockerfile
     container_name: company-service
     ports:
       - "8081:8081"
@@ -65,13 +65,20 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 70s
+    restart: on-failure
+    networks:
+      - app-network
 
   user-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE: user_service
+      dockerfile: user_service/Dockerfile
     container_name: user-service
     ports:
       - "8082:8082"
@@ -82,25 +89,47 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+      company-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 70s
+    restart: on-failure
+    networks:
+      - app-network
 
   gateway:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE: gateway_service
+      dockerfile: gateway_service/Dockerfile
     container_name: gateway-service
     ports:
       - "8080:8080"
     depends_on:
       company-service:
-        condition: service_started
+        condition: service_healthy
       user-service:
-        condition: service_started
+        condition: service_healthy
       config-service:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 70s
+    restart: on-failure
+    networks:
+      - app-network
 
 volumes:
   pgdata:
+
+networks:
+  app-network:
+    driver: bridge
