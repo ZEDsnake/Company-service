@@ -5,10 +5,6 @@ import com.zed.company_service.dto.CreateCompanyDto;
 import com.zed.company_service.dto.PagedCompanyResponseDto;
 import com.zed.company_service.dto.PatchCompanyDto;
 import com.zed.company_service.dto.UpdateCompanyDto;
-import com.zed.company_service.dto.UserInfoDto;
-import jakarta.validation.constraints.Min;
-
-import java.util.List;
 
 public interface CompanyService {
 
